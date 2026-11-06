@@ -4,12 +4,11 @@ Plataforma local de desafios CTF, avaliação de participantes e oportunidades. 
 
 ## Executar no Windows
 
-Requisitos: Python 3.12 e Docker Desktop com engine Linux ativo. Na pasta do projeto:
+Requisitos: Python 3.12 ou superior. Docker Desktop com engine Linux é necessário somente para o laboratório Intranet. O recrutamento e as avaliações simuladas funcionam sem Docker. Na pasta do projeto:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-docker compose --profile manual build web01
 .\.venv\Scripts\python.exe app.py
 ```
 
@@ -24,9 +23,14 @@ O acesso demonstrativo de mentoria herdado da equipe é `mentor@cti.local` / `me
 - Intranet Docker individual com flag única, porta local, limite de instâncias e expiração de 60 minutos.
 - Ranking calculado a partir de desafios resolvidos, sem duplicar pontos por reenvio.
 - Painel de mentoria, avaliação de quatro competências e dossiê com histórico imprimível.
-- Cadastro e pausa de vagas pela mentoria, candidatura única por participante e visualização dos candidatos.
+- Vagas públicas em `/opportunities`; gestão pela mentoria em `/admin` e `/jobs`.
+- Formulário específico por vaga, configurado em editor visual; rascunho, revisão e confirmação da candidatura.
+- Formulários persistidos em tabelas relacionais SQLite: versões, perguntas, opções e respostas; não são armazenados como documentos JSON.
+- Versões das perguntas preservadas desde a abertura do formulário, retorno à vaga após cadastro/login e proteção contra submissão duplicada.
+- Avaliação seletiva simulada em três etapas por candidatura, com evidências de investigação, correlação e resposta; variantes SOC e AppSec.
+- Revisão humana, acompanhamento de etapa e feedback; notas internas não são apresentadas ao candidato.
 
-A compatibilidade de uma vaga compara a pontuação conquistada com a pontuação mínima informada. É um indicador simples, não uma decisão automática de contratação ou uma certificação de competência.
+O indicador legado de compatibilidade de uma vaga compara a pontuação conquistada com a pontuação mínima informada. É um indicador simples, não uma decisão automática de contratação ou uma certificação de competência.
 
 O painel **Minha evolução** apresenta progresso por área, atividade recente e relatos de solução, consultáveis pela mentoria. O contexto completo para continuidade está em [claude.md](claude.md).
 
@@ -52,6 +56,20 @@ Os testes da aplicação usam bancos temporários e mocks do Docker. O teste rea
 
 O servidor Flask está vinculado ao loopback e com debug desligado. O processo da aplicação deve permanecer aberto para remover ambientes expirados; se fechado, a limpeza volta na próxima execução. Não é um serviço de produção nem um ambiente multiusuário remoto. A rede Docker reduz comunicação entre instâncias, mas não constitui sandbox de execução de código arbitrário.
 
+### Conferir o fluxo novo sem Docker
+
+```powershell
+.\.venv\Scripts\python.exe tests/serve_recruitment.py
+```
+
+Abra **http://127.0.0.1:5056**. Esse servidor de demonstração cria duas vagas identificadas como DEMO QA em banco separado, `output/qa/recruitment-browser.db`; não utiliza o banco da equipe. Cadastre uma conta sintética para experimentar. O acesso de mentoria usa a credencial local demonstrativa descrita acima. Nenhum e-mail é enviado.
+
+As avaliações seletivas são cenários textuais com revisão humana; não provisionam novos alvos Docker nem executam comandos. Pontuação de treino não é reaproveitada como nota da seleção. Nesta entrega, a mentoria continua responsável pelo recrutamento interno; perfis separados de administrador/recrutador e isolamento multiempresa ainda não foram implementados.
+
+Para criar o alvo Intranet opcional: `docker compose --profile manual build web01`.
+
 Detalhes de preparação e diagnóstico estão em [docs/DOCKER.md](docs/DOCKER.md). O histórico desta integração está em [docs/mudanca.md](docs/mudanca.md), e a matriz de resultados em [Plano de Testes de Software & GOT.docx](<docs/Plano de Testes de Software & GOT.docx>).
 
 Não publique `lab.db`, `.session-key`, `.env`, dados de usuários ou evidências privadas. O repositório público contém somente código, documentação e recursos visuais; dados locais e segredos ficam ignorados.
+
+Detalhes desta etapa e verificações: [Entrega de recrutamento](docs/ENTREGA-RECRUTAMENTO.md).

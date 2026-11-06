@@ -177,7 +177,15 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.post('/jobs',{**good,'min_points':'nan'}).status_code,400)
         self.assertEqual(self.post('/jobs',good).status_code,302)
         self.post('/logout'); self.login()
-        self.post('/jobs/1/apply'); self.post('/jobs/1/apply')
+        # A rota antiga não pode contornar as perguntas obrigatórias da vaga.
+        for _ in range(2):
+            self.assertEqual(self.post('/jobs/1/apply').headers['Location'],'/applications/1/form')
+        self.assertEqual(self.scalar('SELECT COUNT(*) FROM applications'),0)
+        import re
+        token=re.search(r'name="form_token" value="([^"]+)"',self.client.get('/applications/1/form').get_data(as_text=True)).group(1)
+        answers={'form_token':token,'action':'review','q_availability':'Horário comercial','q_experience':'Investigação de logs em projeto acadêmico','q_portfolio':''}
+        self.assertEqual(self.post('/applications/1/form',answers).status_code,302)
+        for _ in range(2):self.assertEqual(self.post('/applications/1/review').status_code,302)
         self.assertEqual(self.scalar('SELECT COUNT(*) FROM applications'),1)
         self.post('/logout'); self.login(mentor=True); self.post('/jobs/1/toggle'); self.post('/logout'); self.login()
         self.assertEqual(self.post('/jobs/1/apply').status_code,404)

@@ -6,6 +6,8 @@ from flask import Flask, g, render_template, request, redirect, session, flash, 
 from werkzeug.security import generate_password_hash, check_password_hash
 import orchestrator as orch
 import learning
+import recruitment
+import selection
 from catalog import seed_catalog
 
 app = Flask(__name__)
@@ -136,6 +138,8 @@ def init_db():
     con = sqlite3.connect(DB)
     con.executescript(SCHEMA)
     con.executescript(learning.SCHEMA)
+    recruitment.migrate(con)
+    selection.migrate(con)
     if not con.execute("SELECT 1 FROM users").fetchone():
         con.execute("INSERT INTO users(name,email,password,role,team) VALUES(?,?,?,?,?)",
                     ("Mentor", "mentor@cti.local", generate_password_hash(os.environ.get("MENTOR_PASSWORD", "mentor123")), "mentor", "Mentoria"))
@@ -157,6 +161,7 @@ def init_db():
 def db():
     if "db" not in g:
         g.db = sqlite3.connect(DB, timeout=30)
+        g.db.execute("PRAGMA foreign_keys=ON")
         g.db.row_factory = sqlite3.Row
     return g.db
 
@@ -170,7 +175,7 @@ def login_required(f):
     @wraps(f)
     def w(*a, **k):
         if "user_id" not in session:
-            return redirect("/login")
+            return redirect("/login?next=" + request.path)
         return f(*a, **k)
     return w
 
@@ -223,7 +228,8 @@ def register():
                          (name, email, generate_password_hash(password), team))
             db().commit()
             flash("Conta criada! Faça login.")
-            return redirect("/login")
+            target = recruitment.safe_next(request.form.get("next") or request.args.get("next"))
+            return redirect("/login?next=" + target if target else "/login")
         except sqlite3.IntegrityError:
             flash("Este e-mail já está cadastrado.")
     return render_template("register.html")
@@ -236,7 +242,7 @@ def login():
             session.clear()
             session.update(user_id=u["id"], name=u["name"], role=u["role"])
             session.permanent = True
-            return redirect("/challenges")
+            return redirect(recruitment.safe_next(request.form.get("next") or request.args.get("next")) or "/challenges")
         flash("E-mail ou senha inválidos.")
     return render_template("login.html")
 
@@ -538,7 +544,7 @@ def jobs():
     applicants = {}
     if session['role'] == 'mentor':
         for candidate in db().execute('''SELECT a.job_id,u.id,u.name,a.created_at
-                FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.id'''):
+                FROM applications a JOIN users u ON u.id=a.user_id WHERE a.status!='draft' ORDER BY a.id'''):
             applicants.setdefault(candidate['job_id'], []).append(candidate)
     for row in rows:
         row["match_score"] = min(100, round(own["points"] / row["min_points"] * 100)) if row["min_points"] else 100
@@ -552,15 +558,10 @@ def jobs():
 def apply_job(jid):
     if session["role"] != "participante":
         abort(403)
-    d = db()
-    d.execute("BEGIN IMMEDIATE")
-    job = d.execute("SELECT * FROM jobs WHERE id=? AND active=1", (jid,)).fetchone()
+    job = db().execute("SELECT id FROM jobs WHERE id=? AND active=1", (jid,)).fetchone()
     if not job:
         abort(404)
-    d.execute("INSERT OR IGNORE INTO applications(job_id,user_id,created_at) VALUES(?,?,?)", (jid, session["user_id"], int(time.time())))
-    d.commit()
-    flash("Candidatura registrada. A pontuação é apenas um indicador; a seleção cabe à equipe responsável.")
-    return redirect("/jobs")
+    return redirect(f"/applications/{jid}/form")
 
 
 @app.route("/jobs/<int:jid>/toggle", methods=["POST"])
@@ -578,6 +579,8 @@ def toggle_job(jid):
 
 
 learning.register_routes(app, db, login_required)
+recruitment.register_routes(app, db, login_required, mentor_required)
+selection.register_routes(app, db, login_required)
 
 if __name__ == "__main__":
     init_db()

@@ -1,8 +1,8 @@
-{% extends "base.html" %}{% block title %}Vagas & matchmaking{% endblock %}{% block content %}<section class="page-heading">
+{% extends "base.html" %}{% block title %}Gestão de vagas{% endblock %}{% block content %}<section class="page-heading">
 <span class="pill">Conecte prática e oportunidade</span>
-<h1>Vagas & matchmaking</h1>
-<p>Explore oportunidades e compare os critérios da vaga com seu desempenho nos desafios. A candidatura não garante contratação.</p>
-</section>{% if session.role == 'mentor' %}<details class="card">
+<h1>Gestão de vagas</h1>
+<p>Cadastre oportunidades, configure as perguntas de cada vaga e acompanhe as inscrições. A decisão de seleção é humana.</p>
+</section>{% if session.role == 'mentor' %}<div class="page-actions"><a class="button secondary" href="/admin">Ver painel de recrutamento</a><a href="/opportunities">Consultar página pública</a></div>{% endif %}{% if session.role == 'mentor' %}<details class="card">
 <summary>Cadastrar oportunidade</summary>
 <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -33,7 +33,7 @@
 <p class="muted">{{ job.company }}</p>
 <h2>{{ job.title }}</h2>
 <p class="pre">{{ job.description }}</p>
-<p class="mono">Critério: {{ job.min_points }} pontos</p>{% if session.role == 'mentor' %}<form method="post" action="/jobs/{{ job.id }}/toggle">
+<p class="mono">Referência de treino: {{ job.min_points }} pontos</p>{% if session.role == 'mentor' %}<div class="page-actions"><a class="button secondary" href="/admin/jobs/{{ job.id }}/form">Configurar perguntas</a><a href="/opportunities/{{ job.id }}">Ver página da vaga</a></div><form method="post" action="/jobs/{{ job.id }}/toggle">
 <input type="hidden" name="active" value="{{ 0 if job.active else 1 }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="secondary">{{ 'Pausar vaga' if job.active else 'Reabrir vaga' }}</button>
@@ -44,10 +44,7 @@
 <a href="/participante/{{ candidate.id }}">{{ candidate.name }} — ver dossiê</a>
 </li>{% else %}<li>Nenhuma candidatura recebida.</li>{% endfor %}</ul>
 </details>{% else %}<p>Cobertura da pontuação mínima: <strong>{{ job.match_score }}%</strong>
-</p>{% if job.applied %}<p class="ok">Candidatura registrada</p>{% elif job.active %}<form method="post" action="/jobs/{{ job.id }}/apply">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<button class="full">Candidatar-me</button>
-</form>{% endif %}{% endif %}</article>{% else %}<div class="card empty">
+</p>{% if job.applied %}<p class="ok">Inscrição iniciada</p><a href="/my-applications">Consultar ou retomar minha candidatura</a>{% elif job.active %}<a class="button full" href="/applications/{{ job.id }}/form">Preencher candidatura</a>{% endif %}{% endif %}</article>{% else %}<div class="card empty">
 <h2>Nenhuma oportunidade disponível</h2>
 <p>Novas vagas aparecerão aqui quando forem cadastradas pela mentoria.</p>
 <a href="/challenges">Continue praticando nos desafios</a>

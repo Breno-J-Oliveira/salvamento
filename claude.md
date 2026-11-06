@@ -172,3 +172,16 @@ O usuário quer um projeto profissional para portfólio e uso sério pela equipe
 
 O usuário pediu priorizar completude e robustez dos sistemas existentes e remover emojis, sem novas features. Pediu análise prévia, revisão do trabalho dos subagentes e integração final. Autorizou publicar a etapa concluída apenas em salvamento. A revisão está em docs/REVISAO-MATURIDADE.md, com frentes de interface e Docker. Foram corrigidos título do dossiê contendo relatos, submissões duplicadas e recuperação por bfcache, limites de campos, pausa/reabertura com estado explícito, consultas repetidas de candidaturas, falhas de persistência e tratamento de respostas inválidas/limpeza Docker. A identidade visual e a stack permanecem.
 Validação final desta etapa: 65 testes Python aprovados com Docker real habilitado, zero ignorados; 15 cenários Chrome aprovados. O gerente revisou os diffs das frentes, reexecutou a integração e reiniciou o servidor local. A aplicação continua local, sem homologação de produção. Resultados detalhados em docs/REVISAO-MATURIDADE.md.
+
+
+## Nova fase de recrutamento — 06/11/2026
+
+Implementação atual acrescenta recruitment.py e selection.py. Vagas públicas em /opportunities, retorno seguro após login/cadastro, formulário próprio da vaga, rascunho, revisão e confirmação, acompanhamento em /my-applications e gestão da mentoria em /admin. O editor de perguntas é visual e envia campos de formulário convencionais.
+
+Por instrução explícita do usuário, formulários ficam em tabelas relacionais SQLite: job_form_versions, form_questions, form_options e application_answers. jobs.current_form_version aponta a versão atual; applications.form_version preserva a versão da inscrição. Token assinado vincula vaga/usuário/versão desde a primeira abertura. JSON só é lido pela migração de dados anteriores; tabelas/colunas legadas ficam preservadas sem uso operacional novo. Etapas e respostas da avaliação também são relacionais: selection_assessments, selection_stages e selection_responses.
+
+Avaliação textual simulada tem três etapas sequenciais SOC ou AppSec, por candidatura, sem pontuar treino. Mentoria recebe evidências, registra etapa, nota interna e feedback compartilhável. Não há envio de e-mails ou contratação automática. Papéis continuam participante e mentor; não há RBAC multiempresa, editor de vagas com todos os estados futuros ou homologação pública.
+
+O usuário autorizou explicitamente publicar esta etapa em Breno-J-Oliveira/salvamento. Nenhuma autorização adicional de publicação em purple-talent foi dada. Não publicar banco, chaves, env, venv ou evidências privadas. Documento de planejamento: docs/PLANO-NOVA-FASE.md; registro Figma: docs/FIGMA-NOVA-FASE.md.
+
+Validação integrada desta etapa: 85 testes Python (84 aprovados, 1 Docker opcional ignorado), 11 cenários Chrome aprovados e migrações relacionais verificadas em bases temporárias. Registro: docs/ENTREGA-RECRUTAMENTO.md.
