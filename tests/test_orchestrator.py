@@ -37,6 +37,53 @@ class OrchestratorTests(unittest.TestCase):
             with self.assertRaises(orch.DockerError):
                 orch.ensure_network()
 
+    def test_network_malformed_payload_is_domain_error(self):
+        for payload in ('not-json', '[]', 'null', '{}', '[null]'):
+            with self.subTest(payload=payload), patch.object(orch, '_docker', side_effect=[orch.NETWORK, payload]):
+                with self.assertRaises(orch.DockerError):
+                    orch.ensure_network()
+
+    def test_network_requires_bridge_even_with_icc_disabled(self):
+        payload=json.dumps([{'Driver':'host','Options':{'com.docker.network.bridge.enable_icc':'false'}}])
+        with patch.object(orch,'_docker',side_effect=[orch.NETWORK,payload]):
+            with self.assertRaises(orch.DockerError):orch.ensure_network()
+
+    def test_valid_legacy_bridge_does_not_require_recreation(self):
+        payload=json.dumps([{'Driver':'bridge','Options':{'com.docker.network.bridge.enable_icc':'false'}}])
+        with patch.object(orch,'_docker',side_effect=[orch.NETWORK,payload]) as docker:
+            orch.ensure_network()
+            self.assertEqual(docker.call_count,2)
+
+    def test_failed_cleanup_preserves_original_start_error(self):
+        with patch.object(orch,'ensure_network'),patch.object(orch,'ensure_image'),patch.object(orch,'_docker',side_effect=['id','not-json']),patch.object(orch,'stop',side_effect=orch.DockerError('cleanup error')):
+            with self.assertRaisesRegex(orch.DockerError,'configuração de porta inválida') as caught:
+                orch.start('lab-u1-c2-abcdef','cti-lab/web-01',5000,'CTF{0123456789abcdef}')
+            self.assertTrue(caught.exception.__notes__)
+
+    def test_invalid_port_is_cleaned_up(self):
+        payload=json.dumps({'5000/tcp':[{'HostIp':'127.0.0.1','HostPort':'0'}]})
+        with patch.object(orch,'ensure_network'),patch.object(orch,'ensure_image'),patch.object(orch,'_docker',side_effect=['id',payload]),patch.object(orch,'stop') as stop:
+            with self.assertRaises(orch.DockerError):orch.start('lab-u1-c2-abcdef','cti-lab/web-01',5000,'CTF{0123456789abcdef}')
+            stop.assert_called_once_with('lab-u1-c2-abcdef')
+
+    def test_stop_queries_ownership_before_bounded_removal(self):
+        with patch.object(orch,'_docker',side_effect=['lab-u1-c2-abcdef','']) as docker:
+            orch.stop('lab-u1-c2-abcdef')
+            self.assertEqual(docker.call_args_list[0].kwargs['timeout'],orch.QUERY_TIMEOUT)
+            self.assertEqual(docker.call_args_list[1].kwargs['timeout'],orch.STOP_TIMEOUT)
+
+    def test_readiness_timeout_cleans_up_instance(self):
+        payload=json.dumps({'5000/tcp':[{'HostIp':'127.0.0.1','HostPort':'43210'}]})
+        with patch.object(orch,'ensure_network'),patch.object(orch,'ensure_image'),patch.object(orch,'_docker',side_effect=['id',payload]),patch.object(orch.time,'monotonic',side_effect=[0,31]),patch.object(orch,'stop') as stop:
+            with self.assertRaisesRegex(orch.DockerError,'não ficou pronto'):
+                orch.start('lab-u1-c2-abcdef','cti-lab/web-01',5000,'CTF{0123456789abcdef}')
+            stop.assert_called_once()
+
+    def test_os_execution_failure_is_safe_domain_error(self):
+        with patch.object(orch.subprocess,'run',side_effect=PermissionError('secret host path')):
+            with self.assertRaises(orch.DockerError) as caught:orch._docker('ps')
+            self.assertNotIn('secret',str(caught.exception))
+
     def test_start_allocates_port_and_hides_flag_from_arguments(self):
         calls = []
         def docker(*args, **kwargs):

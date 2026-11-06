@@ -167,3 +167,8 @@ Responder em português brasileiro. Preservar stack, visual Figma, dados e alter
 Trabalhar com mudanças incrementais, validação real e distinção entre planejado, implementado e verificado. Solicitar autorização específica para produção, custos, credenciais, exclusões amplas ou alterações destrutivas. Publicação de recursos novos em purple-talent continua restrita; o salvamento autorizado aqui é em salvamento.
 
 O usuário quer um projeto profissional para portfólio e uso sério pela equipe. A revisão e o aceite humanos continuam necessários. Não prometer funcionamento perfeito em todos os ambientes ou cobertura de todas as possibilidades.
+
+## Etapa de maturidade posterior ao salvamento inicial
+
+O usuário pediu priorizar completude e robustez dos sistemas existentes e remover emojis, sem novas features. Pediu análise prévia, revisão do trabalho dos subagentes e integração final. Autorizou publicar a etapa concluída apenas em salvamento. A revisão está em docs/REVISAO-MATURIDADE.md, com frentes de interface e Docker. Foram corrigidos título do dossiê contendo relatos, submissões duplicadas e recuperação por bfcache, limites de campos, pausa/reabertura com estado explícito, consultas repetidas de candidaturas, falhas de persistência e tratamento de respostas inválidas/limpeza Docker. A identidade visual e a stack permanecem.
+Validação final desta etapa: 65 testes Python aprovados com Docker real habilitado, zero ignorados; 15 cenários Chrome aprovados. O gerente revisou os diffs das frentes, reexecutou a integração e reiniciou o servidor local. A aplicação continua local, sem homologação de produção. Resultados detalhados em docs/REVISAO-MATURIDADE.md.

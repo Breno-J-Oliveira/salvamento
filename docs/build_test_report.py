@@ -91,7 +91,7 @@ p('A ordem de verificação foi: validações e permissões; persistência e reg
 heading('Matriz GOT dos testes automatizados')
 p('Cada linha relaciona o identificador ao cenário, dados de entrada, resultado esperado e estado observado. APROVADO significa que todas as asserções daquele método passaram. A rastreabilidade dos métodos está no anexo.')
 trace=[]
-groups=[('Aplicação e permissões','test_app.'),('Catálogo incremental','test_catalog.'),('Limites e concorrência','test_edge_cases.'),('Laboratório HTTP','test_lab.'),('Progresso e relatos','test_learning.'),('Orquestração Docker','test_orchestrator.')]
+groups=[('Aplicação e permissões','test_app.'),('Catálogo incremental','test_catalog.'),('Limites e concorrência','test_edge_cases.'),('Laboratório HTTP','test_lab.'),('Progresso e relatos','test_learning.'),('Recuperação e consistência','test_maturity.'),('Orquestração Docker','test_orchestrator.')]
 index=0
 for group,prefix in groups:
     doc.add_heading(group,level=2)

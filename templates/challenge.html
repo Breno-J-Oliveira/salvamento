@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}{{ c.title }}{% endblock %}{% block content %}<a class="back" href="/challenges">← Arenas & desafios</a>
+{% extends "base.html" %}{% block title %}{{ c.title }}{% endblock %}{% block content %}<a class="back" href="/challenges">Voltar para desafios</a>
 <section class="page-heading">
 <div class="card-top">
 <span class="tag {{ c.side|lower|replace(' ', '') }}">{{ c.side }}</span>
@@ -19,7 +19,7 @@
 <div class="challenge-actions">{% if c.image %}<section class="card lab-card">
 <h2>Seu ambiente virtual</h2>{% if inst %}{% if inst.available %}<span class="tag blueteam">Ambiente iniciado</span>
 <p>Acesse a intranet para investigar as pistas.</p>
-<a class="button secondary full" href="http://127.0.0.1:{{ inst.port }}" target="_blank" rel="noopener noreferrer">Abrir laboratório ↗</a>
+<a class="button secondary full" href="http://127.0.0.1:{{ inst.port }}" target="_blank" rel="noopener noreferrer">Abrir laboratório</a>
 <p class="mono">127.0.0.1:{{ inst.port }}</p>
 {% else %}<p class="msg" role="status">Não foi possível confirmar o estado do Docker. Abra o Docker Desktop e atualize a página. Seu registro de ambiente foi preservado.</p>{% endif %}
 <p>Expira em <strong data-expiry="{{ inst.expires_at }}">{{ ((inst.expires_at - now) / 60)|round(0)|int }} min</strong>.</p>
@@ -32,7 +32,7 @@
 <button class="full">Iniciar ambiente</button>
 </form>
 <p class="field-help">A primeira inicialização pode levar alguns minutos. O ambiente expira automaticamente.</p>{% endif %}</section>{% endif %}<section class="card">
-<h2>Submeter flag</h2>{% if solved %}<p class="ok">✓ Desafio concluído. Seus pontos já foram registrados.</p>{% else %}<p class="muted">Encontrou a bandeira? Envie o código completo para validar sua descoberta.</p>
+<h2>Submeter flag</h2>{% if solved %}<p class="ok">Desafio concluído. Seus pontos já foram registrados.</p>{% else %}<p class="muted">Encontrou a bandeira? Envie o código completo para validar sua descoberta.</p>
 <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <label>Flag<input name="flag" placeholder="CTF{...}" maxlength="512" required autocomplete="off" spellcheck="false" class="mono">

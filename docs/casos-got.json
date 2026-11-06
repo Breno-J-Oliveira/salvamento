@@ -263,5 +263,65 @@
     "Progresso privado",
     "Consultar sem sessão",
     "Redirecionar para login"
+  ],
+  "test_network_malformed_payload_is_domain_error": [
+    "Resposta de rede inválida",
+    "JSON inválido, nulo e vazio",
+    "DockerError controlado"
+  ],
+  "test_network_requires_bridge_even_with_icc_disabled": [
+    "Driver de rede incompatível",
+    "Rede sem driver bridge",
+    "Inicialização recusada"
+  ],
+  "test_valid_legacy_bridge_does_not_require_recreation": [
+    "Rede legada válida",
+    "Bridge com ICC desabilitado",
+    "Rede preservada sem recriação"
+  ],
+  "test_failed_cleanup_preserves_original_start_error": [
+    "Falha em limpeza",
+    "Erro na porta e erro na parada",
+    "Erro de inicialização preservado"
+  ],
+  "test_invalid_port_is_cleaned_up": [
+    "Porta fora do intervalo",
+    "Docker retorna porta zero",
+    "Instância limpa e erro controlado"
+  ],
+  "test_stop_queries_ownership_before_bounded_removal": [
+    "Parada com prazo",
+    "Container pertencente ao projeto",
+    "Consulta de propriedade e remoção com timeouts"
+  ],
+  "test_readiness_timeout_cleans_up_instance": [
+    "Readiness excedida",
+    "Prazo de saúde encerrado",
+    "Limpeza da instância solicitada"
+  ],
+  "test_os_execution_failure_is_safe_domain_error": [
+    "CLI sem permissão",
+    "Erro de execução do sistema",
+    "Mensagem segura sem detalhe interno"
+  ],
+  "test_job_state_replay_is_idempotent": [
+    "Repetição do estado da vaga",
+    "Duas solicitações de pausa e estado inválido",
+    "Vaga continua pausada; inválido recebe400"
+  ],
+  "test_busy_database_has_retry_response_without_details": [
+    "Banco ocupado",
+    "SQLite informa bloqueio",
+    "HTTP503 e Retry-After sem detalhes internos"
+  ],
+  "test_database_failure_is_not_reported_as_success": [
+    "Falha na persistência",
+    "Erro operacional inesperado",
+    "HTTP500 controlado sem apresentar sucesso"
+  ],
+  "test_mentor_dossier_title_contains_no_report_content": [
+    "Título do dossiê",
+    "Participante com relato salvo",
+    "Relato somente no conteúdo, sem HTML no título"
   ]
 }

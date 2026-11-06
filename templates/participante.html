@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}Dossiê de {{ u.name }}<section class="card"><h2>Relatos de aprendizagem</h2>{% for w in writeups %}<h3>{{ w.title }}</h3><p class="pre">{{ w.content }}</p>{% else %}<p>Nenhum relato registrado.</p>{% endfor %}</section>{% endblock %}{% block content %}<a class="back" href="/dashboard">← Painel de avaliação</a>
+{% extends "base.html" %}{% block title %}Dossiê de {{ u.name }}{% endblock %}{% block content %}<a class="back" href="/dashboard">Voltar ao painel de avaliação</a>
 <section class="page-heading dossier-heading">
 <span class="pill">Dossiê do candidato</span>
 <h1>{{ u.name }}</h1>
@@ -28,7 +28,7 @@
 <p class="muted">Registre notas de 1 a 5 com base nas evidências observadas.</p>
 <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% for k,label in [('logica','Raciocínio lógico'),('comunicacao','Comunicação'),('colaboracao','Colaboração'),('decisao','Tomada de decisão')] %}<label>{{ label }}<select name="{{ k }}" required>{% for n in range(1,6) %}<option value="{{ n }}" {{ 'selected' if n == 3 }}>{{ n }} de 5</option>{% endfor %}</select>
-</label>{% endfor %}<label>Observações<textarea name="notes" maxlength="3000" rows="4" placeholder="Descreva as evidências que sustentam sua avaliação.">
+</label>{% endfor %}<label>Observações<textarea name="notes" maxlength="4000" rows="4" placeholder="Descreva as evidências que sustentam sua avaliação.">
 </textarea>
 </label>
 <button>Salvar avaliação</button>

@@ -34,6 +34,7 @@
 <h2>{{ job.title }}</h2>
 <p class="pre">{{ job.description }}</p>
 <p class="mono">Critério: {{ job.min_points }} pontos</p>{% if session.role == 'mentor' %}<form method="post" action="/jobs/{{ job.id }}/toggle">
+<input type="hidden" name="active" value="{{ 0 if job.active else 1 }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="secondary">{{ 'Pausar vaga' if job.active else 'Reabrir vaga' }}</button>
 </form>
@@ -43,7 +44,7 @@
 <a href="/participante/{{ candidate.id }}">{{ candidate.name }} — ver dossiê</a>
 </li>{% else %}<li>Nenhuma candidatura recebida.</li>{% endfor %}</ul>
 </details>{% else %}<p>Cobertura da pontuação mínima: <strong>{{ job.match_score }}%</strong>
-</p>{% if job.applied %}<p class="ok">✓ Candidatura registrada</p>{% elif job.active %}<form method="post" action="/jobs/{{ job.id }}/apply">
+</p>{% if job.applied %}<p class="ok">Candidatura registrada</p>{% elif job.active %}<form method="post" action="/jobs/{{ job.id }}/apply">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="full">Candidatar-me</button>
 </form>{% endif %}{% endif %}</article>{% else %}<div class="card empty">

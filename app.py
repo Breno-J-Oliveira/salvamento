@@ -76,6 +76,20 @@ def security_headers(response):
     response.headers["Referrer-Policy"] = "same-origin"
     response.headers["Cache-Control"] = "no-store" if request.endpoint != "static" else "public, max-age=3600"
     return response
+
+
+@app.errorhandler(sqlite3.OperationalError)
+def persistence_error(error):
+    busy = any(word in str(error).lower() for word in ('locked', 'busy'))
+    code = 503 if busy else 500
+    app.logger.error('Persistência indisponível: %s', type(error).__name__)
+    response = app.make_response((render_template('error.html', code=code,
+        title='Tente novamente em instantes' if busy else 'Não foi possível concluir',
+        message='O sistema está ocupado. Aguarde alguns segundos e tente novamente.' if busy
+        else 'A operação não foi concluída. Tente novamente; se persistir, avise a mentoria.'), code))
+    if busy:
+        response.headers['Retry-After'] = '5'
+    return response
 DB = os.environ.get("LAB_DATABASE") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "lab.db")
 
 SCHEMA = """
@@ -315,7 +329,7 @@ def challenge(cid):
             ok = h(flag) == c["flag_hash"]
         d.execute("INSERT INTO attempts(user_id,challenge_id,correct,created_at) VALUES(?,?,?,?)", (uid, cid, int(ok), int(time.time())))
         d.commit()
-        flash("Flag correta! 🎉" if ok else "Flag incorreta. Tente de novo.")
+        flash("Flag correta!" if ok else "Flag incorreta. Tente de novo.")
         return redirect(f"/challenge/{cid}")
     inst = active_instance(d, uid, cid) if c["image"] else None
     if inst:
@@ -521,10 +535,15 @@ def jobs():
     rows = [dict(r) for r in db().execute("SELECT * FROM jobs ORDER BY id DESC")]
     own = next((r for r in stats() if r["id"] == session["user_id"]), {"points": 0})
     applied = {r[0] for r in db().execute("SELECT job_id FROM applications WHERE user_id=?", (session["user_id"],))}
+    applicants = {}
+    if session['role'] == 'mentor':
+        for candidate in db().execute('''SELECT a.job_id,u.id,u.name,a.created_at
+                FROM applications a JOIN users u ON u.id=a.user_id ORDER BY a.id'''):
+            applicants.setdefault(candidate['job_id'], []).append(candidate)
     for row in rows:
         row["match_score"] = min(100, round(own["points"] / row["min_points"] * 100)) if row["min_points"] else 100
         row["applied"] = row["id"] in applied
-        row["applicants"] = db().execute("SELECT u.id,u.name,a.created_at FROM applications a JOIN users u ON u.id=a.user_id WHERE a.job_id=? ORDER BY a.id", (row["id"],)).fetchall() if session["role"] == "mentor" else []
+        row["applicants"] = applicants.get(row['id'], [])
     return render_template("jobs.html", jobs=rows)
 
 
@@ -547,7 +566,11 @@ def apply_job(jid):
 @app.route("/jobs/<int:jid>/toggle", methods=["POST"])
 @mentor_required
 def toggle_job(jid):
-    result = db().execute("UPDATE jobs SET active=1-active WHERE id=?", (jid,))
+    target = request.form.get('active')
+    if target is not None and target not in ('0', '1'):
+        abort(400, description='Informe um estado válido para a oportunidade.')
+    # Formulários enviam o destino explícito: repetir o POST não inverte o estado.
+    result = db().execute("UPDATE jobs SET active=? WHERE id=?", (int(target), jid)) if target is not None else db().execute("UPDATE jobs SET active=1-active WHERE id=?", (jid,))
     if not result.rowcount:
         abort(404)
     db().commit()
