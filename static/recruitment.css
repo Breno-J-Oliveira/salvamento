@@ -14,3 +14,8 @@
 
 /* Mantém rótulos auxiliares absolutos dentro da área de rolagem da tabela. */
 .table-wrap{position:relative}
+
+/* Gestão editorial de vagas: estados e dados operacionais claros. */
+.vacancy-metadata{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin:20px 0 0;width:100%}.vacancy-metadata>div{min-width:0}.vacancy-metadata dt{font-size:12px;color:var(--muted)}.vacancy-metadata dd{margin:4px 0 0;overflow-wrap:anywhere}.vacancy-state-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}.vacancy-state-actions form{margin:0;max-width:100%}.vacancy-state-actions button{white-space:normal}.danger-outline{border-color:#ffb3ad;color:#ffb3ad;background:transparent}.vacancy-state-draft{color:var(--muted)}.vacancy-state-closed{color:#ffb3ad}.vacancy-table-actions a{display:block;margin:5px 0}.vacancy-editor .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.vacancy-editor label{min-width:0}.vacancy-editor input,.vacancy-editor select,.vacancy-editor textarea{width:100%;min-width:0}.vacancy-editor .field-help{font-weight:400}.vacancy-management h3{margin-top:28px}.vacancy-management p{color:var(--muted)}.application-aside>a:not(.button){display:block;margin-top:14px}
+@media(max-width:600px){.vacancy-editor .form-grid,.vacancy-metadata{grid-template-columns:1fr}.vacancy-state-actions{flex-direction:column;align-items:stretch}.vacancy-state-actions button{width:100%}.vacancy-editor .page-actions>*{width:100%}}
+@media print{.vacancy-state-actions,.vacancy-management{display:none!important}.vacancy-metadata dt,.vacancy-metadata dd{color:black}}

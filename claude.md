@@ -1,5 +1,48 @@
 # Purple Talent — contexto e continuidade do projeto
 
+## Leia primeiro — estado atual da nova fase (06/11/2026)
+
+Esta seção prevalece sobre pendências e restrições históricas descritas adiante. O usuário autorizou implementar a nova fase, exigiu formulários no banco (não JSON) e pediu atualizar este arquivo e publicar o conjunto em **Breno-J-Oliveira/salvamento**. Não há autorização nova para enviar estas evoluções a purple-talent. Bancos, chaves e evidências privadas continuam fora do GitHub.
+
+### O que funciona agora
+
+- Landing orientada ao recrutamento; vagas públicas, detalhe e cadastro/login que retorna ao formulário escolhido.
+- Perguntas específicas por vaga em editor visual. Persistência relacional em job_form_versions, form_questions, form_options e application_answers. A versão mostrada é assinada/vinculada a usuário e vaga; alteração posterior não muda o significado das respostas.
+- Rascunho de candidatura, revisão antes de confirmar, envio único e acompanhamento de status/feedback. Rascunhos não são tratados como candidaturas enviadas pela administração.
+- Avaliação simulada por candidatura em três etapas SOC ou AppSec, respostas relacionais e revisão humana. Não há execução de comandos nesses cenários nem reaproveitamento de pontos do treino como nota da seleção.
+- Painel da mentoria com respostas/evidências, mudança de etapa, nota interna separada do feedback compartilhado e histórico persistido.
+- Gestão editorial de vagas em vacancies.py: criar/editar rascunho, publicar, pausar/reabrir inscrições e encerrar definitivamente. Prévia somente da equipe. Empresa, descrição, área, referência de pontos, nível, modalidade, local e prazo.
+- Prazo até o fim do dia escolhido em Brasília (UTC-3), com limite de novas entradas entre 2000 e 2100. Vaga expirada/pausada/encerrada bloqueia novos envios em rotas novas e legadas; candidaturas enviadas continuam avaliáveis. Encerrar não apaga candidaturas. Para nova seleção após encerramento, criar outra vaga.
+- Revisão otimista da vaga com409 e campos preservados quando outra aba/pessoa alterou o registro. Rascunho não aparece para candidatos nem em /jobs legado. A área não muda após qualquer candidatura para preservar a coerência da avaliação.
+
+### Estrutura e execução atuais
+
+Flask, SQLite e HTML/Jinja/CSS/JS locais permanecem. app.py integra autenticação, treino e módulos. recruitment.py gerencia formulários/candidaturas; selection.py, etapas seletivas; vacancies.py, ciclo de vagas. Não introduzir outro framework/banco para sofisticar a base. Migrações são incrementais e leem JSON antigo somente para conversão; estruturas legadas são preservadas, sem novas escritas operacionais em JSON.
+
+Aplicação local: .venv/Scripts/python.exe app.py. Demonstração isolada sem Docker: .venv/Scripts/python.exe tests/serve_recruitment.py em http://127.0.0.1:5056. Esse servidor usa output/qa/recruitment-browser.db e vagas fictícias; não é implantação pública nem o banco da equipe. Docker continua necessário somente para a Intranet executável.
+
+### Verificação mais recente desta entrega
+
+- tests/run_report.py: 98 testes Python, 97 aprovados e 1 Docker real opcional ignorado.
+- tests/browser_recruitment.cjs:11 cenários Chrome aprovados após integração.
+- tests/browser_vacancies.cjs:10 cenários Chrome aprovados; gestão editorial, privacidade de rascunhos, inscrição/pause/reabertura/encerramento, avaliação preservada, conflito409 e390/1440px.
+- Revisão independente encontrou datas extremas que quebravam datetime.fromtimestamp no Windows; conversão portátil e validação de intervalo corrigidas e cobertas por teste. Screenshots mobile do editor e vaga encerrada foram inspecionadas.
+- Evidências em output/qa são locais/ignoradas. Não apresentar essas verificações como homologação pública ou como teste real de Docker nesta etapa.
+
+### O que ainda falta — ordem sugerida
+
+1. **Avaliação seletiva mais estruturada:** rubrica por competência, notas justificadas por candidatura, revisão final do parecer e cenários mais completos com artefatos. Os cenários atuais são guiados/textuais; não afirmar que simulam SIEM/EDR/Windows reais.
+2. **Operação do recrutamento:** busca/filtros e paginação de candidaturas, histórico legível no painel, atribuição de avaliadores e regra de transições de candidatura mais restrita. Hoje o mentor interno realiza toda a gestão.
+3. **Jornada do candidato:** desistência pelo próprio candidato, revisão de consentimento/visibilidade, exportação e política de retenção; recuperação de acesso e confirmação de e-mail antes de uso público. Não simular envio de e-mail como serviço real.
+4. **Papéis e escopo:** separar administrador, recrutador e avaliador; isolamento por organização/campanha antes de multiempresa. Nunca promover contas automaticamente.
+5. **Figma e acessibilidade:** nova página com 26 telas desktop editáveis já criada; layouts móveis, estados de erro mais completos e atualização do design com o editor real de vagas ainda pendentes. Protótipo não autentica ou grava dados do produto. Testes com teclado/leitor de tela e aceite humano continuam necessários.
+6. **SEO e implantação:** metadados e noindex privado já básicos. Definir domínio/hospedagem, canonical/sitemap de conteúdo público, páginas de privacidade e operação antes de indexar. Não publicar serviço web externo como consequência de um commit de código.
+7. **Operação/segurança:** backup/restauração ensaiados com base representativa, monitoramento, retenção/auditoria, revisão de dependências e capacidade. Locks/rate limiting em memória não coordenam múltiplos processos. Docker precisa reconciliação independente e isolamento adicional para exposição pública.
+8. **Expansão posterior:** gestão editorial versionada de desafios, eventos/turmas, busca de talentos por evidências e integrações de contato. Ranking não decide contratação.
+
+Detalhes da entrega atual: docs/ENTREGA-GESTAO-VAGAS.md. Backlog mantido em docs/PROXIMAS-MELHORIAS.md. O restante deste arquivo registra contexto e etapas anteriores; resultados históricos não substituem os acima.
+
+
 Consolidação em 6 de novembro de 2026. Este arquivo resume o contexto de trabalho da conversa, as decisões do usuário e as evidências disponíveis. É uma passagem de contexto para continuidade, não uma transcrição literal de todas as mensagens. Não contém segredos, banco de usuários ou instruções internas das ferramentas.
 
 ## Pedido de salvamento

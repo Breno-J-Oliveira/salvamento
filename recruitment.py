@@ -2,6 +2,7 @@
 import json
 import re
 import time
+import vacancies
 from urllib.parse import urlsplit, unquote
 from flask import abort, flash, redirect, render_template, request, session
 from itsdangerous import TimestampSigner, BadSignature
@@ -168,14 +169,16 @@ def register_routes(app,db,login_required,mentor_required):
     def job(jid):
         row=db().execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
         if not row:abort(404)
-        return dict(row)
+        return vacancies.decorate(row)
     def latest(j):
         return current_form(db(),j)
     def own(jid):
         row=db().execute('SELECT * FROM applications WHERE job_id=? AND user_id=?',(jid,session['user_id'])).fetchone()
         return dict(row) if row else None
     def context(jid):
-        j=job(jid);a=own(jid);version,qs=latest(j)
+        j=job(jid);a=own(jid)
+        if not a and vacancies.state(j) in ('draft','paused'):abort(404)
+        version,qs=latest(j)
         if a:
             version=a['form_version']
             qs=load_questions(db(),version)
@@ -213,12 +216,13 @@ def register_routes(app,db,login_required,mentor_required):
 
     @app.get('/opportunities')
     def opportunities():
-        return render_template('opportunities.html',jobs=[dict(r) for r in db().execute('SELECT * FROM jobs WHERE active=1 ORDER BY id DESC')])
+        rows=db().execute('SELECT * FROM jobs WHERE active=1 ORDER BY id DESC').fetchall()
+        return render_template('opportunities.html',jobs=[vacancies.decorate(r) for r in rows if vacancies.is_open(r)])
 
     @app.get('/opportunities/<int:jid>')
     def opportunity(jid):
         j=job(jid)
-        if not j['active']:abort(404)
+        if vacancies.state(j) in ('draft','paused'):abort(404)
         return render_template('opportunity.html',job=j)
 
     @app.route('/applications/<int:jid>/form',methods=['GET','POST'])
@@ -242,10 +246,10 @@ def register_routes(app,db,login_required,mentor_required):
             action=request.form.get('action')
             if action not in ('save','review'):abort(400)
             answers,errors=validate(qs,action=='review')
-            if not j['active']:errors['_form']='Esta vaga está pausada. Suas respostas anteriores foram preservadas.'
+            if not vacancies.is_open(j):errors['_form']='Esta vaga não está recebendo inscrições. Suas respostas anteriores foram preservadas.'
             if not errors:
                 d=db();d.execute('BEGIN IMMEDIATE')
-                if not d.execute('SELECT 1 FROM jobs WHERE id=? AND active=1',(jid,)).fetchone():abort(400,description='A vaga não está recebendo inscrições.')
+                if not vacancies.is_open(d.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()):abort(400,description='A vaga não está recebendo inscrições.')
                 existing=d.execute('SELECT status,form_version FROM applications WHERE job_id=? AND user_id=?',(jid,session['user_id'])).fetchone()
                 if existing and existing['status']!='draft':
                     d.rollback()
@@ -272,7 +276,7 @@ def register_routes(app,db,login_required,mentor_required):
         if any(q['required'] and not answers.get(q['id']) for q in qs):return redirect(f'/applications/{jid}/form')
         if request.method=='POST':
             d=db();d.execute('BEGIN IMMEDIATE')
-            if not d.execute('SELECT 1 FROM jobs WHERE id=? AND active=1',(jid,)).fetchone():abort(400,description='A vaga está pausada. Seu rascunho foi preservado.')
+            if not vacancies.is_open(d.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()):abort(400,description='As inscrições estão encerradas ou pausadas. Seu rascunho foi preservado.')
             current=d.execute('SELECT status,form_version FROM applications WHERE id=? AND user_id=?',(a['id'],session['user_id'])).fetchone()
             current_questions=load_questions(d,current['form_version'])
             current_answers=read_answers(d,a['id'],current_questions)
@@ -295,7 +299,7 @@ def register_routes(app,db,login_required,mentor_required):
     @app.get('/admin')
     @mentor_required
     def recruitment_admin():
-        rows=[dict(r) for r in db().execute("SELECT j.*, (SELECT COUNT(*) FROM applications a WHERE a.job_id=j.id AND a.status!='draft') applicant_count FROM jobs j ORDER BY j.id DESC")]
+        rows=[vacancies.decorate(r) for r in db().execute("SELECT j.*, (SELECT COUNT(*) FROM applications a WHERE a.job_id=j.id AND a.status!='draft') applicant_count FROM jobs j ORDER BY j.id DESC")]
         for item in rows:item['application_count']=item['applicant_count']
         applications=[dict(r) for r in db().execute("SELECT a.id,a.job_id,a.status,u.name,j.title job_title FROM applications a JOIN users u ON u.id=a.user_id JOIN jobs j ON j.id=a.job_id WHERE a.status!='draft' ORDER BY a.id DESC")]
         stats=dict(jobs=len(rows),applications=len(applications),drafts=db().execute("SELECT COUNT(*) FROM applications WHERE status='draft'").fetchone()[0])

@@ -1,8 +1,8 @@
-{% extends "base.html" %}{% block title %}Gestão de vagas{% endblock %}{% block content %}<section class="page-heading">
+{% extends "base.html" %}{% from '_recruitment.html' import vacancy_status,vacancy_actions,vacancy_metadata with context %}{% block title %}Gestão de vagas{% endblock %}{% block content %}<section class="page-heading">
 <span class="pill">Conecte prática e oportunidade</span>
 <h1>Gestão de vagas</h1>
 <p>Cadastre oportunidades, configure as perguntas de cada vaga e acompanhe as inscrições. A decisão de seleção é humana.</p>
-</section>{% if session.role == 'mentor' %}<div class="page-actions"><a class="button secondary" href="/admin">Ver painel de recrutamento</a><a href="/opportunities">Consultar página pública</a></div>{% endif %}{% if session.role == 'mentor' %}<details class="card">
+</section>{% if session.role == 'mentor' %}<div class="page-actions"><a class="button" href="/admin/jobs/new">Criar vaga</a><a class="button secondary" href="/admin">Ver painel de recrutamento</a><a href="/opportunities">Consultar página pública</a></div>{% endif %}{% if session.role == 'mentor' %}<details class="card">
 <summary>Cadastrar oportunidade</summary>
 <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -28,23 +28,19 @@
 </details>{% endif %}<div class="grid jobs-grid">{% for job in jobs %}<article class="card job-card">
 <div class="card-top">
 <span class="tag {{ job.side|lower|replace(' ', '') }}">{{ job.side }}</span>
-<span class="pill">{{ 'Aberta' if job.active else 'Pausada' }}</span>
+{{ vacancy_status(job) }}
 </div>
 <p class="muted">{{ job.company }}</p>
 <h2>{{ job.title }}</h2>
-<p class="pre">{{ job.description }}</p>
-<p class="mono">Referência de treino: {{ job.min_points }} pontos</p>{% if session.role == 'mentor' %}<div class="page-actions"><a class="button secondary" href="/admin/jobs/{{ job.id }}/form">Configurar perguntas</a><a href="/opportunities/{{ job.id }}">Ver página da vaga</a></div><form method="post" action="/jobs/{{ job.id }}/toggle">
-<input type="hidden" name="active" value="{{ 0 if job.active else 1 }}">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<button class="secondary">{{ 'Pausar vaga' if job.active else 'Reabrir vaga' }}</button>
-</form>
+<p class="pre">{{ job.description }}</p>{{ vacancy_metadata(job) }}
+<p class="mono">Referência de treino: {{ job.min_points }} pontos</p>{% if session.role == 'mentor' %}<div class="page-actions"><a class="button secondary" href="/admin/jobs/{{ job.id }}/edit">Editar vaga</a><a href="/admin/jobs/{{ job.id }}/form">Configurar perguntas</a><a href="/admin/jobs/{{ job.id }}/preview">Conferir prévia</a></div>{{ vacancy_actions(job) }}
 <details class="applicants">
 <summary>Candidaturas ({{ job.applicants|length }})</summary>
 <ul>{% for candidate in job.applicants %}<li>
 <a href="/participante/{{ candidate.id }}">{{ candidate.name }} — ver dossiê</a>
 </li>{% else %}<li>Nenhuma candidatura recebida.</li>{% endfor %}</ul>
 </details>{% else %}<p>Cobertura da pontuação mínima: <strong>{{ job.match_score }}%</strong>
-</p>{% if job.applied %}<p class="ok">Inscrição iniciada</p><a href="/my-applications">Consultar ou retomar minha candidatura</a>{% elif job.active %}<a class="button full" href="/applications/{{ job.id }}/form">Preencher candidatura</a>{% endif %}{% endif %}</article>{% else %}<div class="card empty">
+</p>{% if job.applied %}<p class="ok">Inscrição iniciada</p><a href="/my-applications">Consultar ou retomar minha candidatura</a>{% elif job_is_open(job) %}<a class="button full" href="/applications/{{ job.id }}/form">Preencher candidatura</a>{% endif %}{% endif %}</article>{% else %}<div class="card empty">
 <h2>Nenhuma oportunidade disponível</h2>
 <p>Novas vagas aparecerão aqui quando forem cadastradas pela mentoria.</p>
 <a href="/challenges">Continue praticando nos desafios</a>

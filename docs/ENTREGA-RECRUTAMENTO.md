@@ -1,6 +1,8 @@
 # Entrega local — recrutamento por evidências
 
-06/11/2026. Esta etapa implementa vagas públicas, autenticação com retorno à vaga, perguntas específicas configuráveis, rascunho, revisão e confirmação, acompanhamento, painel da mentoria e avaliação textual simulada em três etapas por candidatura.
+Registro da primeira entrega de 06/11/2026. A gestão editorial posterior está em [ENTREGA-GESTAO-VAGAS.md](ENTREGA-GESTAO-VAGAS.md); consulte esse registro para o estado mais recente.
+
+Esta etapa implementa vagas públicas, autenticação com retorno à vaga, perguntas específicas configuráveis, rascunho, revisão e confirmação, acompanhamento, painel da mentoria e avaliação textual simulada em três etapas por candidatura.
 
 ## Persistência e migração
 

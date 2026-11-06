@@ -8,6 +8,7 @@ import orchestrator as orch
 import learning
 import recruitment
 import selection
+import vacancies
 from catalog import seed_catalog
 
 app = Flask(__name__)
@@ -63,10 +64,11 @@ def protect_request():
 @app.errorhandler(403)
 @app.errorhandler(404)
 @app.errorhandler(405)
+@app.errorhandler(409)
 @app.errorhandler(413)
 @app.errorhandler(429)
 def user_error(error):
-    titles = {400: "Confira a solicitação", 403: "Acesso restrito", 404: "Página não encontrada", 405: "Ação não permitida", 413: "Conteúdo muito grande", 429: "Aguarde um momento"}
+    titles = {400: "Confira a solicitação", 403: "Acesso restrito", 404: "Página não encontrada", 405: "Ação não permitida", 409: "Confira a versão atual", 413: "Conteúdo muito grande", 429: "Aguarde um momento"}
     messages = {403: "Seu perfil não tem permissão para acessar esta área.", 404: "O item solicitado não existe ou não está disponível.", 405: "Use os botões disponíveis na página para realizar esta ação.", 413: "O formulário ultrapassou o limite de tamanho permitido."}
     return render_template("error.html", code=error.code, title=titles[error.code], message=messages.get(error.code, error.description)), error.code
 
@@ -140,6 +142,7 @@ def init_db():
     con.executescript(learning.SCHEMA)
     recruitment.migrate(con)
     selection.migrate(con)
+    vacancies.migrate(con)
     if not con.execute("SELECT 1 FROM users").fetchone():
         con.execute("INSERT INTO users(name,email,password,role,team) VALUES(?,?,?,?,?)",
                     ("Mentor", "mentor@cti.local", generate_password_hash(os.environ.get("MENTOR_PASSWORD", "mentor123")), "mentor", "Mentoria"))
@@ -534,11 +537,14 @@ def jobs():
             abort(400, description="A pontuação mínima deve ser um número inteiro.")
         if not 3 <= len(title) <= 120 or not 2 <= len(company) <= 120 or not 10 <= len(description) <= 4000 or side not in ("Red Team", "Blue Team", "Purple Team") or not 0 <= points <= 100000:
             abort(400, description="Confira os dados da vaga e a pontuação mínima.")
-        db().execute("INSERT INTO jobs(title,company,description,side,min_points,created_by,created_at) VALUES(?,?,?,?,?,?,?)", (title,company,description,side,points,session["user_id"],int(time.time())))
+        created = db().execute("INSERT INTO jobs(title,company,description,side,min_points,created_by,created_at) VALUES(?,?,?,?,?,?,?)", (title,company,description,side,points,session["user_id"],int(time.time())))
+        vacancies.event(db(),created.lastrowid,session["user_id"],"created",None,"published",1)
         db().commit()
         flash("Vaga publicada.")
         return redirect("/jobs")
-    rows = [dict(r) for r in db().execute("SELECT * FROM jobs ORDER BY id DESC")]
+    rows = [vacancies.decorate(r) for r in db().execute("SELECT * FROM jobs ORDER BY id DESC")]
+    if session.get("role") != "mentor":
+        rows = [row for row in rows if vacancies.is_open(row)]
     own = next((r for r in stats() if r["id"] == session["user_id"]), {"points": 0})
     applied = {r[0] for r in db().execute("SELECT job_id FROM applications WHERE user_id=?", (session["user_id"],))}
     applicants = {}
@@ -558,8 +564,8 @@ def jobs():
 def apply_job(jid):
     if session["role"] != "participante":
         abort(403)
-    job = db().execute("SELECT id FROM jobs WHERE id=? AND active=1", (jid,)).fetchone()
-    if not job:
+    job = db().execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone()
+    if not job or not vacancies.is_open(job):
         abort(404)
     return redirect(f"/applications/{jid}/form")
 
@@ -568,19 +574,28 @@ def apply_job(jid):
 @mentor_required
 def toggle_job(jid):
     target = request.form.get('active')
-    if target is not None and target not in ('0', '1'):
-        abort(400, description='Informe um estado válido para a oportunidade.')
-    # Formulários enviam o destino explícito: repetir o POST não inverte o estado.
-    result = db().execute("UPDATE jobs SET active=? WHERE id=?", (int(target), jid)) if target is not None else db().execute("UPDATE jobs SET active=1-active WHERE id=?", (jid,))
-    if not result.rowcount:
-        abort(404)
-    db().commit()
-    return redirect("/jobs")
+    if target is not None and target not in ('0','1'):
+        abort(400,description='Informe um estado válido para a oportunidade.')
+    d=db();d.execute('BEGIN IMMEDIATE')
+    row=d.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
+    if not row:abort(404)
+    old=vacancies.state(row)
+    if old not in ('published','paused'):
+        abort(400,description='Use o editor para publicar rascunhos. Vagas encerradas não podem ser reabertas.')
+    new='published' if (target=='1' or (target is None and old=='paused')) else 'paused'
+    if new=='published' and row['deadline_at'] is not None and row['deadline_at']<=int(time.time()):
+        abort(400,description='Atualize o prazo pelo editor antes de reabrir a vaga.')
+    if new!=old:
+        d.execute('UPDATE jobs SET active=?,status=?,revision=revision+1,updated_at=? WHERE id=?',(int(new=='published'),new,int(time.time()),jid))
+        vacancies.event(d,jid,session['user_id'],'state_changed',old,new,row['revision']+1)
+    d.commit()
+    return redirect('/jobs')
 
 
 learning.register_routes(app, db, login_required)
 recruitment.register_routes(app, db, login_required, mentor_required)
 selection.register_routes(app, db, login_required)
+vacancies.register_routes(app, db, mentor_required)
 
 if __name__ == "__main__":
     init_db()

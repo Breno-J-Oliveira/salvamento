@@ -11,4 +11,4 @@ Validação: inspeção estrutural, fontes, ausência de imagens na nova página
 
 Limites: protótipo desktop com dados ilustrativos e campos preenchidos; não autentica, não publica vagas, não armazena inscrições e não envia e-mails. Registros secundários sem percurso próprio são somente leitura. O fluxo demonstrado não substitui implementação de permissões, validação, persistência, formulários dinâmicos e testes E2E no produto. Layouts móveis e estados de erro aprofundados ficam para próxima rodada de design.
 
-Próxima entrega funcional segue PLANO-NOVA-FASE.md: contrato de vagas/formulários versionados, candidatura, permissões e primeira trilha. Nenhuma publicação no GitHub nesta etapa.
+A implementação funcional posterior já inclui formulários relacionais, candidatura, trilhas textuais e gestão editorial de vagas; veja ENTREGA-GESTAO-VAGAS.md. O Figma ainda precisa refletir os detalhes do editor implementado e ganhar layouts móveis/estados adicionais. Na etapa de design não houve publicação de código; publicações posteriores foram autorizadas pelo usuário para salvamento.

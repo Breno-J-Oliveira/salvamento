@@ -24,6 +24,7 @@ O acesso demonstrativo de mentoria herdado da equipe é `mentor@cti.local` / `me
 - Ranking calculado a partir de desafios resolvidos, sem duplicar pontos por reenvio.
 - Painel de mentoria, avaliação de quatro competências e dossiê com histórico imprimível.
 - Vagas públicas em `/opportunities`; gestão pela mentoria em `/admin` e `/jobs`.
+- Editor em `/admin/jobs/new`: rascunho, edição, publicação, pausa/reabertura, encerramento definitivo, prazo e metadados. Prévia restrita e proteção de edição simultânea.
 - Formulário específico por vaga, configurado em editor visual; rascunho, revisão e confirmação da candidatura.
 - Formulários persistidos em tabelas relacionais SQLite: versões, perguntas, opções e respostas; não são armazenados como documentos JSON.
 - Versões das perguntas preservadas desde a abertura do formulário, retorno à vaga após cadastro/login e proteção contra submissão duplicada.
@@ -73,3 +74,5 @@ Detalhes de preparação e diagnóstico estão em [docs/DOCKER.md](docs/DOCKER.m
 Não publique `lab.db`, `.session-key`, `.env`, dados de usuários ou evidências privadas. O repositório público contém somente código, documentação e recursos visuais; dados locais e segredos ficam ignorados.
 
 Detalhes desta etapa e verificações: [Entrega de recrutamento](docs/ENTREGA-RECRUTAMENTO.md).
+
+A gestão completa de vagas está documentada em [Entrega da gestão de vagas](docs/ENTREGA-GESTAO-VAGAS.md). Pausa e prazo bloqueiam novos envios sem apagar candidaturas; encerramento é definitivo. A avaliação de uma inscrição já enviada continua disponível após o encerramento da vaga.

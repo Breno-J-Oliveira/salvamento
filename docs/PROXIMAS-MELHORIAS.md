@@ -1,20 +1,15 @@
 # Próximas melhorias do Purple Talent
 
-As propostas abaixo são evolução futura. Não fazem parte das funcionalidades já implementadas.
+Atualizado em 06/11/2026 após a gestão editorial de vagas. O fluxo atual já inclui formulários relacionais por vaga, candidaturas com rascunho/revisão, avaliação textual de 3 etapas, feedback, editor de vagas, prazo e estados. As propostas abaixo ainda não estão concluídas.
 
-| Prioridade | Proposta | Valor e critério de aceite |
-| --- | --- | --- |
-| 1 | Rodadas Purple Team com rubrica e feedback | Registrar ataque, evidência defensiva e mitigação em uma rodada, com revisão humana e critérios publicados antes do evento. |
-| 2 | Eventos e turmas | Separar participantes, desafios e rankings por campanha; impedir que um recrutador consulte dados de outra campanha sem permissão. |
-| 3 | Busca de talentos por evidências | Filtrar candidatos por desafios resolvidos, categoria, relatos e notas da mentoria, distinguindo habilidades declaradas de resultados observados. |
-| 4 | Trilhas com pré-requisitos e recomendações | Sugerir o próximo desafio a partir do progresso, explicar a recomendação e permitir que o participante escolha outro percurso. |
-| 5 | Gestão editorial de desafios | Mentor cria versões de conteúdo, valida respostas em ambiente de teste e publica sem alterar retroativamente a pontuação de quem já concluiu. |
-| 6 | Provisionamento assíncrono e controle de capacidade | Ao evoluir para várias máquinas/processos, persistir solicitações de laboratório, aplicar quotas atomicamente e reconciliar expiração mesmo sem processo web ativo. |
-| 7 | Operação e recuperação | Estabelecer backup e restauração testados, monitoramento de falhas e trilha de auditoria com retenção e acesso definidos. |
-| 8 | Privacidade e recrutamento | Adicionar consentimento granular para exibição do perfil, contato mediado e exportação de dados; confirmar o escopo dos dados antes de qualquer exclusão. |
+1. **Rubrica e parecer por candidatura.** Estruturar critérios/notas justificadas, evidências e revisão antes de compartilhar feedback. Validar que cada nota pertence àquela seleção e que notas internas não vazam.
+2. **Busca e acompanhamento administrativo.** Filtros por vaga/etapa, paginação, histórico legível e atribuição de avaliadores; dados autorizados e tempo de consulta verificados com volume representativo.
+3. **Jornada e privacidade do candidato.** Desistência, consentimento granular, exportação, retenção e recuperação de conta. Definir dados mínimos e política antes de coletar documentos ou dados sensíveis.
+4. **Perfis e organizações.** Separar administração, recrutamento e avaliação; testar acesso cruzado entre vagas/campanhas/organizações antes de multiempresa.
+5. **Desafios e trilhas mais completos.** Criar cenários com artefatos correlacionados, rubricas publicadas e editor versionado de conteúdo. Treino e seleção permanecem separados; sem aprovação automática por ranking.
+6. **Figma e acessibilidade.** Atualizar o design com o editor real, layouts móveis e erros/estados; validar teclado, leitor de tela e uso humano dos percursos. Protótipo é referência e não funcionalidade operacional.
+7. **Operação e segurança.** Backup/restauração ensaiados, monitoramento, capacidade, retenção/auditoria e revisão de dependências. Medir antes de mudar banco/stack. Múltiplos processos exigem coordenação fora da memória local.
+8. **SEO e publicação do serviço.** Definir domínio/hospedagem, privacidade, canonical e sitemap somente público; preservar autenticação e noindex de áreas privadas. Um commit não autoriza deploy público.
+9. **Integrações futuras.** Comunicação real por e-mail, eventos/turmas e contato mediado, com configuração e consentimento apropriados. Não informar envio ou contratação que não aconteceram.
 
-## Escalabilidade
-
-A versão local conserva Flask, SQLite e Docker. A agregação do ranking e os índices reduzem o custo de consulta. Antes de oferecer acesso remoto ou suportar vários processos, devem ser medidos usuários simultâneos, latência e bloqueios de escrita. Essa medição orientará paginação, limites de recursos, execução assíncrona e eventual evolução de persistência. O lock em memória e o contador de tentativas atual não coordenam múltiplos processos.
-
-Laboratórios precisam continuar separados dos dados da plataforma. Execução de código arbitrário e exposição pública exigem um desenho de isolamento distinto do laboratório HTTP educativo atual.
+A base continua Flask, SQLite e Docker CLI no host. Laboratórios ficam separados dos dados da plataforma. Execução arbitrária de código, exposição remota e carga elevada precisam de isolamento e operação adicionais.
