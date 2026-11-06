@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% block title %}Painel de avaliação{% endblock %}{% block content %}<section class="page-heading">
+<span class="pill">Visão da mentoria</span>
+<h1>Avaliação Purple Team</h1>
+<p>Acompanhe as equipes e analise evidências antes de registrar uma avaliação individual.</p>
+</section>
+<div class="metrics">
+<div>
+<span>Participantes</span>
+<strong>{{ rows|length }}</strong>
+</div>
+<div>
+<span>Equipes</span>
+<strong>{{ teams|length }}</strong>
+</div>
+<div>
+<span>Desafios</span>
+<strong>{{ total }}</strong>
+</div>
+</div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Tabela com rolagem horizontal">
+<table>
+<caption>Desempenho por equipe</caption>
+<thead>
+<tr>
+<th>Equipe</th>
+<th>Membros</th>
+<th>Conclusões</th>
+<th>Pontos</th>
+<th>Tentativas</th>
+</tr>
+</thead>
+<tbody>{% for t in teams %}<tr>
+<td>
+<strong>{{ t.team }}</strong>
+</td>
+<td>{{ t.members }}</td>
+<td>{{ t.solved }}</td>
+<td class="points">{{ t.points }}</td>
+<td>{{ t.attempts }}</td>
+</tr>{% else %}<tr>
+<td colspan="5" class="empty">As equipes aparecerão após o cadastro de participantes.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Tabela com rolagem horizontal">
+<table>
+<caption>Acompanhamento individual</caption>
+<thead>
+<tr>
+<th>Participante</th>
+<th>Equipe</th>
+<th>Resolvidos</th>
+<th>Pontos</th>
+<th>Tentativas</th>
+<th>Tempo médio</th>
+<th>Avaliação</th>
+<th>Dossiê</th>
+</tr>
+</thead>
+<tbody>{% for r in rows %}<tr>
+<td>{{ r.name }}</td>
+<td>{{ r.team }}</td>
+<td>{{ r.solved }}/{{ total }}</td>
+<td class="points">{{ r.points }}</td>
+<td>{{ r.attempts }}</td>
+<td>{{ (r.avg_min|string + ' min') if r.avg_min is not none else '—' }}</td>
+<td>{{ (r.rating|string + '/5') if r.rating is not none else 'Não avaliado' }}</td>
+<td>
+<a href="/participante/{{ r.id }}">Avaliar</a>
+</td>
+</tr>{% else %}<tr>
+<td colspan="8" class="empty">Nenhum participante cadastrado.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>{% endblock %}

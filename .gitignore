@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+lab.db
+lab.db-*
+.secret_key
+.session-key
+.runtime/
+output/
+.playwright-cli/
+node_modules/

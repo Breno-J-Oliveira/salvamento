@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% block title %}Meu perfil{% endblock %}{% block content %}<section class="page-heading">
+<span class="pill">Sua identidade na plataforma</span>
+<h1>{{ user.name }}</h1>
+<p>Meu perfil · {{ user.team or 'Sem equipe' }}</p>
+</section>
+{% if s %}<div class="metrics"><div><strong>{{ s.points }}</strong><span>pontos em CTF</span></div><div><strong>{{ s.solved }}</strong><span>desafios concluídos</span></div><div><strong>{{ s.rating if s.rating is not none else '—' }}</strong><span>avaliação média Purple Team</span></div><div><strong>{{ s.attempts }}</strong><span>tentativas registradas</span></div></div>{% endif %}
+<div class="two-columns">
+<section class="card">
+<h2>Informações pessoais</h2>
+<form method="post">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label>Nome<input name="name" value="{{ user.name }}" minlength="2" maxlength="80" autocomplete="name" required>
+</label>
+<label>E-mail<input type="email" value="{{ user.email }}" disabled>
+</label>
+<label>Equipe<input name="team" value="{{ user.team or '' }}" maxlength="80">
+</label>
+<button>Salvar alterações</button>
+</form>
+</section>
+<section class="card">
+<h2>Seu progresso</h2>{% if s %}<dl class="rating-list">
+<dt>Pontos conquistados</dt>
+<dd>{{ s.points }}</dd>
+<dt>Desafios concluídos</dt>
+<dd>{{ s.solved }}</dd>
+<dt>Tentativas registradas</dt>
+<dd>{{ s.attempts }}</dd>
+<dt>Avaliação média</dt>
+<dd>{{ s.rating if s.rating is not none else 'Não avaliado' }}</dd>
+</dl>
+<a class="button secondary" href="/challenges">Continuar nos desafios</a>{% else %}<p>Seu acesso de mentoria permite acompanhar e avaliar participantes.</p>
+<a class="button secondary" href="/dashboard">Abrir painel de avaliação</a>{% endif %}</section>
+</div>{% endblock %}

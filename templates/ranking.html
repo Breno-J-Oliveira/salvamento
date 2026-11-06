@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% block title %}Talent Pool & ranking{% endblock %}{% block content %}<section class="page-heading">
+<span class="pill">Desempenho nos desafios</span>
+<h1>Talent Pool & ranking</h1>
+<p>Resultados práticos para acompanhar a evolução dos participantes. A pontuação representa os desafios concluídos.</p>
+</section>
+<div class="metrics">
+<div>
+<span>Participantes</span>
+<strong>{{ rows|length }}</strong>
+</div>
+<div>
+<span>Desafios disponíveis</span>
+<strong>{{ total }}</strong>
+</div>
+<div>
+<span>Avaliação</span>
+<strong class="metric-text">Ataque e defesa</strong>
+</div>
+</div>
+<label class="search">Buscar participante ou equipe<input type="search" data-filter="#ranking-body" placeholder="Digite um nome ou equipe">
+</label>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Tabela com rolagem horizontal">
+<table>
+<caption>Classificação por pontuação</caption>
+<thead>
+<tr>
+<th>Posição</th>
+<th>Participante</th>
+<th>Equipe</th>
+<th>Resolvidos</th>
+<th>Pontos</th>{% if session.role == 'mentor' %}<th>Dossiê</th>{% endif %}</tr>
+</thead>
+<tbody id="ranking-body">{% for r in rows %}<tr data-search="{{ r.name }} {{ r.team }}">
+<td class="mono">{{ loop.index }}</td>
+<td>
+<strong>{{ r.name }}</strong>
+</td>
+<td>{{ r.team }}</td>
+<td>{{ r.solved }}/{{ total }}</td>
+<td class="points">{{ r.points }}</td>{% if session.role == 'mentor' %}<td>
+<a href="/participante/{{ r.id }}">Ver dossiê</a>
+</td>{% endif %}</tr>{% else %}<tr>
+<td colspan="6" class="empty">Ainda não há participantes no ranking.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>
+<p class="empty" data-filter-empty hidden>Nenhum participante encontrado.</p>{% endblock %}

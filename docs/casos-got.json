@@ -1,0 +1,267 @@
+{
+  "test_all_mentor_pages_render": [
+    "Telas de mentoria",
+    "Mentor autenticado; painel, dossiê, ambientes, ranking, vagas e perfil",
+    "Todas respondem HTTP 200 e renderizam os templates"
+  ],
+  "test_all_participant_pages_render": [
+    "Telas do participante",
+    "Conta participante; arenas, detalhes, ranking, vagas e perfil",
+    "Todas respondem HTTP 200"
+  ],
+  "test_anonymous_protected_pages": [
+    "Acesso sem sessão",
+    "GET nas oito rotas protegidas sem login",
+    "Redirecionamento HTTP 302 para autenticação"
+  ],
+  "test_cannot_stop_other_users_instance": [
+    "Encerramento de instância alheia",
+    "Participante tenta encerrar desafio cuja instância pertence a outra conta",
+    "Docker não é acionado e registro alheio continua ativo"
+  ],
+  "test_challenge_keeps_state_when_docker_unavailable": [
+    "Docker indisponível na consulta",
+    "Instância registrada e consulta Docker com erro simulado",
+    "Página responde sem apagar a instância"
+  ],
+  "test_challenge_reconciles_missing_container": [
+    "Container removido externamente",
+    "Instância registrada, mas consulta informa container ausente",
+    "Registro passa a inativo e usuário pode iniciar outro"
+  ],
+  "test_correct_flag_scores_once": [
+    "Pontuação única",
+    "Mesma flag correta enviada três vezes",
+    "Uma conclusão e 50 pontos, sem duplicação"
+  ],
+  "test_csrf_incorrect": [
+    "Token adulterado",
+    "Token recebido diferente do token da sessão",
+    "HTTP 400"
+  ],
+  "test_csrf_rejected": [
+    "Token ausente",
+    "POST de login e de flag sem token CSRF",
+    "HTTP 400 sem executar ação"
+  ],
+  "test_duplicate_registration": [
+    "E-mail duplicado",
+    "Dois cadastros com o mesmo e-mail",
+    "Apenas uma conta participante é criada"
+  ],
+  "test_evaluation_validation": [
+    "Notas da avaliação",
+    "Valores abc, 0, 6 e 1.5; depois notas válidas de 1 a 5",
+    "Inválidos recebem 400; avaliação válida persiste; mentor não é avaliado como participante"
+  ],
+  "test_expired_flag_rejected": [
+    "Flag de ambiente expirado",
+    "Flag correta de instância com prazo encerrado",
+    "Nenhuma tentativa pontuada é criada"
+  ],
+  "test_global_capacity_prevents_start": [
+    "Capacidade global",
+    "Dez instâncias ativas e nova solicitação",
+    "Nenhum novo container é solicitado"
+  ],
+  "test_init_preserves_users_and_instances": [
+    "Reinicialização sem perda",
+    "Cadastro e instância ativa; executar init_db novamente",
+    "Contas e estado ativo são preservados"
+  ],
+  "test_invalid_flags_no_points": [
+    "Flags inválidas",
+    "Flag errada, vazia e com 513 caracteres",
+    "Errada registra falha; vazia e extensa são rejeitadas; zero pontos"
+  ],
+  "test_jobs_create_apply_duplicate_pause": [
+    "Ciclo da oportunidade",
+    "Pontuação inválida, criação válida, duas candidaturas e pausa",
+    "Validação 400; uma candidatura; vaga pausada recusa nova inscrição"
+  ],
+  "test_lab_requires_own_active_instance": [
+    "Flag de outra conta",
+    "Envio sem instância própria e com hash pertencente a outro usuário",
+    "Nenhuma conclusão registrada"
+  ],
+  "test_lab_unique_flag_and_expiry": [
+    "Flag da instância própria",
+    "Iniciar ambiente com Docker simulado e submeter sua flag",
+    "Instância ativa registrada e uma conclusão correta"
+  ],
+  "test_login_invalid_and_logout": [
+    "Injeção SQL e saída",
+    "E-mail com SQL; depois login válido, GET logout e POST logout",
+    "SQL não autentica; GET recebe 405; POST encerra sessão"
+  ],
+  "test_missing_challenge": [
+    "Desafio inexistente",
+    "Consultar e iniciar ID 999",
+    "HTTP 404 em ambas as ações"
+  ],
+  "test_participant_cannot_access_mentor": [
+    "Escalada de privilégios",
+    "Participante acessa painel, dossiê, ambientes e ações de mentor",
+    "HTTP 403"
+  ],
+  "test_profile_validation_and_update": [
+    "Edição do perfil",
+    "Nome vazio; depois nome/equipe válidos com campo role forjado",
+    "Nome inválido rejeitado; perfil atualizado sem virar mentor"
+  ],
+  "test_rate_limit": [
+    "Repetição de login",
+    "Onze solicitações em menos de um minuto",
+    "A décima primeira recebe HTTP 429"
+  ],
+  "test_reaper_preserves_failed_instances": [
+    "Limpeza e falha do Docker",
+    "Expiração com stop falhando; depois stop bem-sucedido",
+    "Falha preserva ativo; sucesso marca inativo"
+  ],
+  "test_register_valid_and_role_not_escalated": [
+    "Cadastro seguro",
+    "E-mail com espaços e maiúsculas; role mentor enviado pelo cliente",
+    "E-mail normalizado, senha em hash e papel participante"
+  ],
+  "test_register_validation": [
+    "Limites do cadastro",
+    "Nome vazio, e-mail inválido, senha curta/extensa e equipe extensa",
+    "HTTP 400 e nenhuma conta adicional"
+  ],
+  "test_role_rechecked_from_database": [
+    "Permissão revogada",
+    "Mentor autenticado passa a participante no banco",
+    "Próximo acesso ao painel recebe 403"
+  ],
+  "test_security_headers_and_size": [
+    "Cabeçalhos e tamanho",
+    "GET login e POST de mais de 64 KiB",
+    "DENY e no-store presentes; excesso recebe 413"
+  ],
+  "test_start_idempotent_and_failure_not_leaked": [
+    "Início repetido e falhas",
+    "Dois inícios; parada com erro; início com mensagem interna sensível",
+    "Um start; falha preserva estado; mensagem interna não aparece ao usuário"
+  ],
+  "test_xss_escaped": [
+    "Script no nome",
+    "Nome contém tag script; renderizar arenas",
+    "Conteúdo é escapado, sem tag executável"
+  ],
+  "test_unicode_csrf_is_rejected_not_server_error": [
+    "Token com Unicode",
+    "Token adulterado contendo acentos",
+    "HTTP 400 em vez de erro interno"
+  ],
+  "test_concurrent_correct_submissions_only_award_once": [
+    "Submissões concorrentes",
+    "Duas requisições paralelas com a mesma resposta correta",
+    "Ambas redirecionam e há apenas uma conclusão no banco"
+  ],
+  "test_per_user_capacity_prevents_launch": [
+    "Limite individual",
+    "Participante com duas instâncias ativas inicia outra",
+    "Docker não recebe nova solicitação de start"
+  ],
+  "test_all_static_challenge_answers": [
+    "Todos os desafios sem container",
+    "Respostas corretas dos desafios 1, 3 e 4",
+    "Três conclusões totalizam 300 pontos"
+  ],
+  "test_discovery_path": [
+    "Investigação da intranet",
+    "GET início, robots.txt e caminho indicado",
+    "Início não revela flag; robots aponta arquivo; arquivo retorna flag em texto"
+  ],
+  "test_health_and_unknown_path": [
+    "Saúde do laboratório",
+    "GET health e caminho inexistente",
+    "Saúde retorna ok e rota desconhecida recebe 404"
+  ],
+  "test_docker_error_does_not_expose_output": [
+    "Erro Docker sem vazamento",
+    "CLI simulada devolve mensagem contendo segredo",
+    "Exceção pública não contém o segredo"
+  ],
+  "test_network_rejects_unsafe_configuration": [
+    "Rede incompatível",
+    "Rede existente sem bloqueio ICC configurado",
+    "Inicialização recusada com DockerError"
+  ],
+  "test_rejects_foreign_container": [
+    "Proteção de outros projetos",
+    "Tentativa de parar nome de container alheio",
+    "Nome recusado antes de chamar Docker"
+  ],
+  "test_rejects_unapproved_image_even_if_present": [
+    "Imagem não permitida",
+    "Solicitação de imagem fora da lista autorizada",
+    "Imagem recusada antes de chamar Docker"
+  ],
+  "test_start_allocates_port_and_hides_flag_from_arguments": [
+    "Parâmetros de inicialização",
+    "Start válido com CLI e HTTP simulados",
+    "Porta atribuída pelo Docker em loopback, readonly e flag fora do argv"
+  ],
+  "test_status_only_owned_running_name": [
+    "Status por propriedade",
+    "Lista de nomes com etiqueta do projeto",
+    "Só a instância correspondente é considerada em execução"
+  ],
+  "test_stop_absent_is_idempotent": [
+    "Parada de instância ausente",
+    "Nome válido que não existe mais",
+    "Operação termina sem erro e sem remover outro container"
+  ],
+  "test_stop_does_not_hide_docker_failure": [
+    "Erro real na parada",
+    "CLI indisponível durante stop",
+    "DockerError é propagado à aplicação"
+  ],
+  "test_two_isolated_instances_and_cleanup": [
+    "Dois containers reais",
+    "Duas instâncias com flags distintas; inspeção e encerramento independente",
+    "Portas distintas, respostas corretas, usuário 10001, readonly, limite 128 MiB, capabilities removidas, sem socket; parar uma preserva a outra"
+  ],
+  "test_incremental_seed_preserves_existing_challenge": [
+    "Seed incremental",
+    "Executar seed duas vezes com título já existente",
+    "Não duplicar nem sobrescrever registros"
+  ],
+  "test_answers_match_persisted_hashes": [
+    "Respostas do catálogo",
+    "Comparar respostas com hashes persistidos",
+    "Todos os hashes correspondem às respostas"
+  ],
+  "test_puzzles_decode_to_declared_answers": [
+    "Puzzles reproduzíveis",
+    "Decodificar César, Base64 duplo e ASCII",
+    "Respostas iguais às declaradas"
+  ],
+  "test_titles_unique_and_seeded_order_stable": [
+    "Catálogo estável",
+    "Inserir oito novos desafios",
+    "Títulos únicos e ordem consistente"
+  ],
+  "test_progress_renders_empty_and_solved": [
+    "Painel de evolução",
+    "Consultar antes e depois de concluir desafio",
+    "HTTP200 e desafio concluído disponível"
+  ],
+  "test_cannot_write_unsolved_or_alien_solution": [
+    "Relato sem conclusão",
+    "Enviar relato sem resolver o desafio na conta",
+    "HTTP403"
+  ],
+  "test_writeup_validated_upserted_and_escaped": [
+    "Relato validado",
+    "Texto curto, extenso, válido e com script; atualizar",
+    "Limites aplicados, uma linha persistida e HTML escapado"
+  ],
+  "test_private_progress_requires_authentication": [
+    "Progresso privado",
+    "Consultar sem sessão",
+    "Redirecionar para login"
+  ]
+}

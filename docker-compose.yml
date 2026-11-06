@@ -1,0 +1,27 @@
+# A aplicação Flask roda no host e cria ambientes individuais pelo orchestrator.py.
+# docker compose build prepara a imagem. O perfil manual é apenas para diagnóstico.
+services:
+  web01:
+    profiles: [manual]
+    image: cti-lab/web-01
+    build: ./challenges/web-01
+    ports:
+      - "127.0.0.1:5001:5000"
+    environment:
+      FLAG: "CTF{diagnostico_local_sem_pontuacao}"
+    restart: "no"
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    networks: [lab]
+networks:
+  lab:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"

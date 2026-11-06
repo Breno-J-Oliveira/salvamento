@@ -167,4 +167,3 @@ Responder em português brasileiro. Preservar stack, visual Figma, dados e alter
 Trabalhar com mudanças incrementais, validação real e distinção entre planejado, implementado e verificado. Solicitar autorização específica para produção, custos, credenciais, exclusões amplas ou alterações destrutivas. Publicação de recursos novos em purple-talent continua restrita; o salvamento autorizado aqui é em salvamento.
 
 O usuário quer um projeto profissional para portfólio e uso sério pela equipe. A revisão e o aceite humanos continuam necessários. Não prometer funcionamento perfeito em todos os ambientes ou cobertura de todas as possibilidades.
-
