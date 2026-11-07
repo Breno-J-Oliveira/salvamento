@@ -21,7 +21,7 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
    await form.locator('button').click();
  };
  await check('V01 Criar rascunho editorial sem exposição pública',async()=>{
-  await go(mp,'/login');await mp.locator('[name=email]').fill('mentor@cti.local');await mp.locator('[name=password]').fill('mentor123');await mp.getByRole('button',{name:'Entrar na plataforma'}).click();await mp.waitForURL('**/challenges');
+  await go(mp,'/login');await mp.locator('[name=email]').fill('mentor@cti.local');await mp.locator('[name=password]').fill('mentor123');await mp.getByRole('button',{name:'Entrar na plataforma'}).click();await mp.waitForURL('**/admin');
   await go(mp,'/admin/jobs/new');await mp.locator('[name=title]').fill(title);await mp.locator('[name=company]').fill('Empresa fictícia QA');await mp.locator('textarea[name=description]').fill('Descrição sintética para verificar a gestão editorial das vagas.');await mp.locator('[name=side]').selectOption('Blue Team');await mp.locator('[name=min_points]').fill('0');
   await clickAction(mp,'save_draft');await mp.waitForURL(/\/admin/);
   // Tanto redirect para editor quanto para lista preserva link de edição.

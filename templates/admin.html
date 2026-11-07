@@ -2,10 +2,10 @@
 {% from '_recruitment.html' import admin_nav,status,vacancy_status with context %}
 {% block title %}Administração do recrutamento{% endblock %}
 {% block content %}
-{{ admin_nav() }}
 <section class="page-heading"><span class="pill">Área da equipe</span><h1>Processos seletivos</h1><p>Prepare oportunidades, acompanhe inscrições e registre a decisão da equipe com base nas evidências de cada candidatura.</p></section>
 <div class="recruitment-metrics"><div class="card"><strong>{{ stats.jobs }}</strong><span>vagas cadastradas</span></div><div class="card"><strong>{{ stats.applications }}</strong><span>candidaturas enviadas</span></div><div class="card"><strong>{{ stats.drafts }}</strong><span>rascunhos de inscrição</span></div></div>
-<div class="page-actions"><a class="button" href="/admin/jobs/new">Criar vaga</a><a class="button secondary" href="/jobs">Gerenciar vagas</a><a href="/opportunities">Ver página pública</a></div>
+<div class="page-actions"><a class="button" href="/admin/jobs/new">Criar vaga</a><a class="button secondary" href="/jobs">Gerenciar vagas</a><a href="#candidaturas">Ver candidaturas</a></div>
+<nav class="page-actions" aria-label="Ferramentas administrativas"><a href="/dashboard">Avaliações e dossiês</a><a href="/ambientes">Ambientes de laboratório</a></nav>
 <section class="card"><h2>Vagas e formulários</h2><p class="field-help">Rascunhos ficam restritos à equipe. O prazo controla novas inscrições; candidaturas já recebidas são preservadas.</p><div class="table-wrap"><table><thead><tr><th scope="col">Vaga</th><th scope="col">Estado</th><th scope="col">Prazo</th><th scope="col">Ações</th></tr></thead><tbody>
 {% for job in jobs %}<tr><td>{{ job.title }}</td><td>{{ vacancy_status(job) }}</td><td>{{ job_deadline(job) }}</td><td class="vacancy-table-actions"><a href="/admin/jobs/{{ job.id }}/edit">Editar vaga<span class="sr-only"> {{ job.title }}</span></a><a href="/admin/jobs/{{ job.id }}/form">Configurar perguntas<span class="sr-only"> de {{ job.title }}</span></a><a href="/admin/jobs/{{ job.id }}/preview">Conferir prévia<span class="sr-only"> de {{ job.title }}</span></a></td></tr>
 {% else %}<tr><td colspan="4">Nenhuma vaga cadastrada. Crie um rascunho para preparar a primeira oportunidade.</td></tr>{% endfor %}

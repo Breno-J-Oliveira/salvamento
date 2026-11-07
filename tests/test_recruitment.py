@@ -6,6 +6,8 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
+from werkzeug.security import generate_password_hash
+from werkzeug.datastructures import MultiDict
 os.environ.setdefault('SECRET_KEY','test-only')
 import app as module
 import recruitment
@@ -100,11 +102,42 @@ class RecruitmentTests(unittest.TestCase):
     def test_questions_schema_validation(self):
         for raw in ['{}','[]','[null]',json.dumps([dict(id='same',label='Question',type='text'),dict(id='same',label='Question',type='text')]),json.dumps([dict(id='x',label='Question',type='select',options=[])]),json.dumps([dict(id='x',label='Question',type='text',required='yes')])]:
             with self.assertRaises(ValueError):recruitment.validate_questions(json.loads(raw))
+
+    def test_custom_form_choices_persist_and_are_visible_only_to_evaluator(self):
+        questions=[dict(id='area',label='Qual área?',type='select',required=True,options=['Ataque','Defesa']),
+                   dict(id='skills',label='Quais habilidades?',type='multiselect',required=True,options=['Logs','Web']),
+                   dict(id='hours',label='Horas disponíveis?',type='number',required=True,options=[])]
+        self.as_user(1)
+        self.assertEqual(self.post('/admin/jobs/1/form',{'questions_json':json.dumps(questions)}).status_code,302)
+        self.as_user(2)
+        token=self.token()
+        data=MultiDict([('csrf_token','test'),('form_token',token),('action','review'),('q_area','Defesa'),('q_skills','Logs'),('q_skills','Web'),('q_hours','12')])
+        self.assertEqual(self.client.post('/applications/1/form',data=data).status_code,302)
+        self.assertEqual(self.post('/applications/1/review').status_code,302)
+        self.assertEqual(self.rows("SELECT value FROM application_answers ORDER BY question_id,position"),[('Defesa',),('Logs',),('Web',),('12',)])
+        self.as_user(3)
+        self.assertEqual(self.client.get('/admin/applications/1').status_code,403)
+        self.as_user(1)
+        response=self.client.get('/admin/applications/1')
+        for value in (b'Defesa',b'Logs',b'Web',b'12'):self.assertIn(value,response.data)
+
+    def test_custom_form_rejects_forged_choices_and_invalid_number(self):
+        questions=[dict(id='area',label='Qual área?',type='select',required=True,options=['Defesa']),
+                   dict(id='hours',label='Horas disponíveis?',type='number',required=True,options=[])]
+        self.as_user(1);self.post('/admin/jobs/1/form',{'questions_json':json.dumps(questions)})
+        self.as_user(2)
+        for data in ({'q_area':'Forjada','q_hours':'12'}, {'q_area':'Defesa','q_hours':'inf'}):
+            self.assertEqual(self.post('/applications/1/form',{'action':'review',**data}).status_code,400)
+        self.assertEqual(self.rows('SELECT COUNT(*) FROM applications'),[(0,)])
     def test_safe_next_and_successful_login(self):
         for value in ['https://evil.test','//evil.test','/%5cevil.test','/x%0d%0aLocation:evil']:
             self.assertEqual(recruitment.safe_next(value),'')
         self.assertEqual(recruitment.safe_next('/applications/1/form'),'/applications/1/form')
         response=self.post('/login?next=/applications/1/form',{'email':'mentor@cti.local','password':'mentor123'})
+        self.assertEqual(response.location,'/admin')
+        self.post('/logout')
+        self.write('UPDATE users SET password=? WHERE id=?',(generate_password_hash('candidate-password'),2))
+        response=self.post('/login?next=/applications/1/form',{'email':'candidate@example.test','password':'candidate-password'})
         self.assertEqual(response.location,'/applications/1/form')
     def test_concurrent_confirmation_creates_one_history_event(self):
         from concurrent.futures import ThreadPoolExecutor

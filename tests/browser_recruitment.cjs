@@ -25,7 +25,7 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
  });
  await check('R02 Mentor cria vaga e configura perguntas próprias',async()=>{
   await go(mp,'/login');await mp.getByLabel('E-mail',{exact:true}).fill('mentor@cti.local');await mp.getByLabel('Senha',{exact:true}).fill('mentor123');
-  await mp.getByRole('button',{name:'Entrar na plataforma'}).click();await mp.waitForURL('**/challenges');
+  await mp.getByRole('button',{name:'Entrar na plataforma'}).click();await mp.waitForURL('**/admin');
   await go(mp,'/jobs');await mp.locator('summary').filter({hasText:'Cadastrar oportunidade'}).click();
   await mp.locator('[name=title]').fill(title);await mp.locator('[name=company]').fill('Empresa fictícia de QA');
   await mp.locator('textarea[name=description]').fill('Vaga sintética para validar inscrição, revisão e feedback sem dados reais.');

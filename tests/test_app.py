@@ -82,6 +82,10 @@ class AppTests(unittest.TestCase):
         self.assertEqual(self.post('/logout').status_code,302)
         self.assertEqual(self.client.get('/challenges').status_code,302)
 
+    def test_mentor_login_opens_admin_dashboard(self):
+        response = self.post('/login?next=/challenges', {'email':'mentor@cti.local', 'password':'mentor123'})
+        self.assertEqual(response.location, '/admin')
+
     def test_participant_cannot_access_mentor(self):
         self.login()
         for path in ['/dashboard','/ambientes','/participante/1']:

@@ -247,6 +247,8 @@ def login():
             session.clear()
             session.update(user_id=u["id"], name=u["name"], role=u["role"])
             session.permanent = True
+            if u["role"] == "mentor":
+                return redirect("/admin")
             return redirect(recruitment.safe_next(request.form.get("next") or request.args.get("next")) or "/challenges")
         flash("E-mail ou senha inválidos.")
     return render_template("login.html")
