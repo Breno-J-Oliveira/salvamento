@@ -2,6 +2,7 @@
 import json
 import re
 import time
+from datetime import datetime, timedelta, timezone
 import vacancies
 from urllib.parse import urlsplit, unquote
 from flask import abort, flash, redirect, render_template, request, session
@@ -299,11 +300,35 @@ def register_routes(app,db,login_required,mentor_required):
     @app.get('/admin')
     @mentor_required
     def recruitment_admin():
+        q=request.args.get('q','').strip()
+        selected_status=request.args.get('status','')
+        job_id=request.args.get('job_id','')
+        raw_page=request.args.get('page','1')
+        if len(q)>120 or (selected_status and (selected_status not in STATUSES or selected_status=='draft')):
+            abort(400,description='Confira a busca e a etapa informada.')
+        if not re.fullmatch(r'[0-9]{1,9}',raw_page) or int(raw_page)<1:
+            abort(400,description='Informe uma página válida.')
+        if job_id and (not re.fullmatch(r'[0-9]{1,18}',job_id) or int(job_id)<1):
+            abort(400,description='Informe uma vaga válida.')
+        page=int(raw_page);per_page=20
         rows=[vacancies.decorate(r) for r in db().execute("SELECT j.*, (SELECT COUNT(*) FROM applications a WHERE a.job_id=j.id AND a.status!='draft') applicant_count FROM jobs j ORDER BY j.id DESC")]
         for item in rows:item['application_count']=item['applicant_count']
-        applications=[dict(r) for r in db().execute("SELECT a.id,a.job_id,a.status,u.name,j.title job_title FROM applications a JOIN users u ON u.id=a.user_id JOIN jobs j ON j.id=a.job_id WHERE a.status!='draft' ORDER BY a.id DESC")]
-        stats=dict(jobs=len(rows),applications=len(applications),drafts=db().execute("SELECT COUNT(*) FROM applications WHERE status='draft'").fetchone()[0])
-        return render_template('admin.html',jobs=rows,applications=applications,stats=stats)
+        base=" FROM applications a JOIN users u ON u.id=a.user_id JOIN jobs j ON j.id=a.job_id WHERE a.status!='draft'"
+        conditions=[];params=[]
+        if q:
+            # Busca literal: % e _ digitados não viram coringas SQL.
+            term='%'+q.replace('!', '!!').replace('%','!%').replace('_','!_')+'%'
+            conditions.append("(u.name LIKE ? ESCAPE '!' OR j.title LIKE ? ESCAPE '!')");params.extend([term,term])
+        if selected_status:conditions.append('a.status=?');params.append(selected_status)
+        if job_id:conditions.append('a.job_id=?');params.append(int(job_id))
+        filtered=base+(' AND '+' AND '.join(conditions) if conditions else '')
+        total=db().execute('SELECT COUNT(*)'+filtered,params).fetchone()[0]
+        pages=max(1,(total+per_page-1)//per_page);page=min(page,pages)
+        applications=[dict(r) for r in db().execute('SELECT a.id,a.job_id,a.status,u.name,j.title job_title'+filtered+' ORDER BY a.id DESC LIMIT ? OFFSET ?',params+[per_page,(page-1)*per_page])]
+        stats=dict(jobs=len(rows),applications=db().execute('SELECT COUNT(*)'+base).fetchone()[0],drafts=db().execute("SELECT COUNT(*) FROM applications WHERE status='draft'").fetchone()[0])
+        return render_template('admin.html',jobs=rows,applications=applications,stats=stats,
+            filters=dict(q=q,status=selected_status,job_id=job_id),
+            pagination=dict(page=page,pages=pages,total=total,per_page=per_page))
 
     @app.route('/admin/jobs/<int:jid>/form',methods=['GET','POST'])
     @mentor_required
@@ -339,4 +364,16 @@ def register_routes(app,db,login_required,mentor_required):
             if status!=old_status:d.execute('INSERT INTO application_history(application_id,actor_id,status,created_at) VALUES(?,?,?,?)',(aid,session['user_id'],status,now))
             d.commit();flash('Parecer salvo. Somente o feedback compartilhável será apresentado ao candidato.');return redirect(f'/admin/applications/{aid}')
         qs=load_questions(db(),a['form_version']);answers=read_answers(db(),aid,qs);a.update(questions=qs,answers=answers)
-        return render_template('admin_application.html',application=a,questions=qs,answers=answers,history=db().execute('SELECT status,created_at FROM application_history WHERE application_id=? ORDER BY id DESC',(aid,)).fetchall())
+        history=[]
+        for event in db().execute('''SELECT h.id,h.status,h.created_at,h.actor_id,
+                COALESCE(NULLIF(u.name,''),'Usuário indisponível') actor_name
+                FROM application_history h LEFT JOIN users u ON u.id=h.actor_id
+                WHERE h.application_id=? ORDER BY h.created_at,h.id''',(aid,)):
+            item=dict(event)
+            try:
+                instant=datetime(1970,1,1,tzinfo=timezone.utc)+timedelta(seconds=item['created_at'])
+                item.update(created_at_label=instant.strftime('%d/%m/%Y %H:%M UTC'),created_at_iso=instant.isoformat())
+            except (TypeError, ValueError, OverflowError):
+                item.update(created_at_label='Data indisponível',created_at_iso='')
+            history.append(item)
+        return render_template('admin_application.html',application=a,questions=qs,answers=answers,history=history)

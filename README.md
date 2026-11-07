@@ -30,6 +30,8 @@ O acesso demonstrativo de mentoria herdado da equipe é `mentor@cti.local` / `me
 - Versões das perguntas preservadas desde a abertura do formulário, retorno à vaga após cadastro/login e proteção contra submissão duplicada.
 - Avaliação seletiva simulada em três etapas por candidatura, com evidências de investigação, correlação e resposta; variantes SOC e AppSec.
 - Revisão humana, acompanhamento de etapa e feedback; notas internas não são apresentadas ao candidato.
+- Rubrica interna por competência, justificativa e histórico de revisões por candidatura, sem alterar os pontos de treino.
+- Busca, filtros por vaga/etapa e paginação das candidaturas da equipe, mantendo rascunhos privados.
 
 O indicador legado de compatibilidade de uma vaga compara a pontuação conquistada com a pontuação mínima informada. É um indicador simples, não uma decisão automática de contratação ou uma certificação de competência.
 

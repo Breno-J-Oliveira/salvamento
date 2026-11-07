@@ -1,0 +1,10 @@
+{% if rubric.assessment_ready %}
+<section class="card"><h2>Revisão por competência</h2><p>Registro interno da avaliação seletiva. As notas não alteram os pontos de treino nem aprovam a candidatura automaticamente.</p>
+<p>Escala: 0 sem evidência; 1 insuficiente; 2 parcial; 3 adequado; 4 consistente; 5 aprofundado. Justifique com evidências das respostas.</p>
+{% if error %}<p class="msg" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="/admin/applications/{{ application_id }}/rubric" data-loading="Registrando revisão…">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="revision" value="{{ values.get('revision', rubric.latest.revision if rubric.latest else 0) }}">
+{% for key,label in rubric.labels.items() %}<label>{{ label }}<select name="{{ key }}" required><option value="">Selecione a nota</option>{% for n in range(6) %}<option value="{{ n }}" {% if values.get(key, rubric.latest[key] if rubric.latest else '')|string == n|string %}selected{% endif %}>{{ n }} de 5</option>{% endfor %}</select></label>{% endfor %}
+<label>Justificativa da revisão<textarea name="justification" minlength="30" maxlength="4000" rows="5" required>{{ values.get('justification', rubric.latest.justification if rubric.latest else '') }}</textarea></label><button>Registrar revisão por competência</button>
+</form>{% if rubric.history %}<h3>Histórico de revisões</h3>{% for review in rubric.history %}<details><summary>Revisão {{ review.revision }} · {{ review.reviewer_name }} · {{ review.reviewed_at }}</summary><dl>{% for key,label in rubric.labels.items() %}<dt>{{ label }}</dt><dd>{{ review[key] }}/5</dd>{% endfor %}</dl><p class="pre">{{ review.justification }}</p></details>{% endfor %}{% endif %}
+</section>{% else %}<section class="card"><h2>Revisão por competência</h2><p>A avaliação precisa ser concluída pelo candidato antes do registro das notas.</p></section>{% endif %}

@@ -13,3 +13,4 @@ Atualizado em 06/11/2026 após a gestão editorial de vagas. O fluxo atual já i
 9. **Integrações futuras.** Comunicação real por e-mail, eventos/turmas e contato mediado, com configuração e consentimento apropriados. Não informar envio ou contratação que não aconteceram.
 
 A base continua Flask, SQLite e Docker CLI no host. Laboratórios ficam separados dos dados da plataforma. Execução arbitrária de código, exposição remota e carga elevada precisam de isolamento e operação adicionais.
+Atualização de07/11: rubrica interna versionada por competência e navegação paginada/filtrada de candidaturas foram integradas. Permanecem pendentes cenários seletivos com artefatos mais ricos, atribuição de avaliadores, transições mais restritas e separação de papéis/organizações. A revisão humana não decide contratação automaticamente.

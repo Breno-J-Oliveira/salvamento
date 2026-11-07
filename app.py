@@ -8,6 +8,7 @@ import orchestrator as orch
 import learning
 import recruitment
 import selection
+import rubric
 import vacancies
 from catalog import seed_catalog
 
@@ -142,6 +143,7 @@ def init_db():
     con.executescript(learning.SCHEMA)
     recruitment.migrate(con)
     selection.migrate(con)
+    rubric.migrate(con)
     vacancies.migrate(con)
     if not con.execute("SELECT 1 FROM users").fetchone():
         con.execute("INSERT INTO users(name,email,password,role,team) VALUES(?,?,?,?,?)",
@@ -595,6 +597,7 @@ def toggle_job(jid):
 learning.register_routes(app, db, login_required)
 recruitment.register_routes(app, db, login_required, mentor_required)
 selection.register_routes(app, db, login_required)
+rubric.register_routes(app, db, mentor_required)
 vacancies.register_routes(app, db, mentor_required)
 
 if __name__ == "__main__":

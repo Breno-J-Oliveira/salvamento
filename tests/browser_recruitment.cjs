@@ -11,8 +11,8 @@ const results=[];let browser;
 async function check(name,fn){try{await fn();results.push({name,status:'APROVADO'});}catch(e){results.push({name,status:'FALHOU',detail:e.message});throw e;}}
 (async()=>{
  browser=await chromium.launch({channel:'chrome',headless:true});
- const mentor=await browser.newContext({viewport:{width:1440,height:1000}});
- const candidate=await browser.newContext({viewport:{width:1440,height:1000}});
+ const mentor=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ const candidate=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  const mp=await mentor.newPage(),cp=await candidate.newPage(),errors=[];
  for(const p of [mp,cp])p.on('pageerror',e=>errors.push(e.message));
  let jid,aid;const demoIds=[];
@@ -66,7 +66,7 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   await cp.getByRole('button',{name:'Revisar inscrição'}).click();await cp.waitForURL(`**/applications/${jid}/review`);
   await cp.getByRole('heading',{name:'Confira antes de enviar.'}).waitFor();
   await cp.getByRole('button',{name:'Confirmar candidatura'}).click();await cp.waitForURL('**/my-applications');
-  await cp.getByText(title,{exact:true}).waitFor();
+  await cp.getByRole('heading',{name:title,exact:true}).waitFor();
  });
  await check('R06 Avaliação seletiva completa três etapas em ordem',async()=>{
   const link=cp.getByRole('link',{name:'Abrir avaliação desta candidatura'}).first();
@@ -86,9 +86,41 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   await mp.locator('[name=feedback]').fill('Análise recebida. Próxima etapa: entrevista com a equipe.');
   await mp.getByRole('button',{name:'Salvar etapa e parecer'}).click();await mp.waitForURL(`**/admin/applications/${aid}`);
  });
+ await check('R12 Rubrica interna registra competências e preserva histórico',async()=>{
+  await go(mp,`/admin/applications/${aid}`);
+  const form=mp.locator(`form[action="/admin/applications/${aid}/rubric"]`);
+  for(const key of ['investigation','evidence','decisions','communication'])await form.locator(`[name=${key}]`).selectOption('4');
+  await form.locator('[name=justification]').fill('QA-RUBRICA-INTERNA: as respostas apresentam evidências correlacionadas e decisões justificadas com limites explícitos.');
+  await form.getByRole('button',{name:'Registrar revisão por competência'}).click();
+  await mp.waitForURL(`**/admin/applications/${aid}`);
+  await mp.getByText('Histórico de revisões',{exact:true}).waitFor();
+  await mp.reload();assert.equal(await mp.locator('summary').filter({hasText:'Revisão 1'}).count(),1);
+ });
+ await check('R13 Filtros do painel preservam busca e estado vazio',async()=>{
+  await go(mp,'/admin');
+  await mp.getByLabel('Buscar candidato ou vaga').fill(title);
+  await mp.getByRole('combobox',{name:/^Etapa/}).selectOption('interview');
+  await mp.getByRole('button',{name:'Filtrar candidaturas'}).click();
+  await mp.getByRole('link',{name:'Consultar candidatura de Candidato QA Sintético'}).waitFor();
+  assert.equal(await mp.getByLabel('Buscar candidato ou vaga').inputValue(),title);
+  await mp.getByLabel('Buscar candidato ou vaga').fill('sem-resultado-qa-xyz');
+  await mp.getByRole('button',{name:'Filtrar candidaturas'}).click();
+  await mp.getByText('Nenhuma candidatura corresponde aos filtros.',{exact:false}).waitFor();
+ });
+ await check('R14 Histórico identifica atores e datas sem replicar notas internas',async()=>{
+  await go(mp,`/admin/applications/${aid}`);
+  const history=mp.getByRole('list',{name:'Mudanças de etapa da candidatura'});
+  await history.waitFor();
+  const text=await history.textContent();
+  assert.ok(text.includes('Candidato QA Sintético'));
+  assert.ok(text.includes('Mentor'));
+  assert.equal(text.includes('QA-NOTA-INTERNA'),false);
+  assert.ok(await history.locator('time').count()>=2);
+ });
  await check('R08 Candidato recebe feedback sem nota interna e não acessa administração',async()=>{
   await go(cp,'/my-applications');await cp.getByText('Análise recebida. Próxima etapa: entrevista com a equipe.',{exact:true}).waitFor();
   assert.equal((await cp.locator('body').textContent()).includes('QA-NOTA-INTERNA-RESTRITA-'),false);
+  assert.equal((await cp.locator('body').textContent()).includes('QA-RUBRICA-INTERNA'),false);
   assert.equal((await go(cp,`/admin/applications/${aid}`)).status(),403);assert.equal((await go(cp,'/admin')).status(),403);
  });
  await check('R09 Mobile e desktop sem overflow nas telas novas',async()=>{

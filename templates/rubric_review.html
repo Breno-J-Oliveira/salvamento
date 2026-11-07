@@ -1,0 +1,1 @@
+{% extends "base.html" %}{% block title %}Revisão por competência{% endblock %}{% block content %}<h1>Revisão por competência</h1><a href="/admin/applications/{{ application_id }}">Voltar à candidatura e conferir o registro atual</a>{% if error and not rubric.assessment_ready %}<p class="msg" role="alert">{{ error }}</p>{% endif %}{% include '_rubric.html' %}{% endblock %}

@@ -1,5 +1,15 @@
 # Purple Talent — contexto e continuidade do projeto
 
+## Continuidade local de 07/11/2026
+
+Esta é a continuidade mais recente; o estado de06/11 abaixo permanece como histórico da base recebida.
+
+A nova versão de salvamento (base13f9c2c) foi baixada em codex/continue-salvamento, preservando o checkout anterior em codex/before-salvamento-update. Nesta continuação foram integradas revisão humana por competência (rubric.py) e busca/filtros/paginação das candidaturas da mentoria. As notas são relacionais e internas, com justificativa, autor/data e histórico de revisões; não alteram pontos de treino, etapa ou feedback compartilhado. Apenas avaliações seletivas já enviadas podem ser revisadas. Concorrência retorna409 sem sobrescrever revisões anteriores.
+
+GET/admin passou a filtrar candidato/vaga, etapa e vaga específica, com20 candidaturas por página. Rascunhos continuam excluídos e métricas globais são preservadas. Documentos desta etapa: docs/ENTREGA-RUBRICA.md e docs/ENTREGA-FILTROS.md. Resultados finais devem ser conferidos nesses registros; verificações anteriores não são evidência da nova etapa.
+
+O usuário pediu testes reais Docker. As primeiras tentativas tiveram timeout/erro500 durante inicialização. Após estabilização do engine, o diagnóstico e a bateria real concluíram17/17 testes aprovados, sem alteração do código Docker ou rebuild. Foram confirmados healthcheck interno, HTTP no host, duas instâncias com flags/portas distintas e encerramento independente. Detalhes: docs/DIAGNOSTICO-DOCKER.md. Não enviar evoluções para purple-talent.
+
 ## Leia primeiro — estado atual da nova fase (06/11/2026)
 
 Esta seção prevalece sobre pendências e restrições históricas descritas adiante. O usuário autorizou implementar a nova fase, exigiu formulários no banco (não JSON) e pediu atualizar este arquivo e publicar o conjunto em **Breno-J-Oliveira/salvamento**. Não há autorização nova para enviar estas evoluções a purple-talent. Bancos, chaves e evidências privadas continuam fora do GitHub.
@@ -228,3 +238,4 @@ Avaliação textual simulada tem três etapas sequenciais SOC ou AppSec, por can
 O usuário autorizou explicitamente publicar esta etapa em Breno-J-Oliveira/salvamento. Nenhuma autorização adicional de publicação em purple-talent foi dada. Não publicar banco, chaves, env, venv ou evidências privadas. Documento de planejamento: docs/PLANO-NOVA-FASE.md; registro Figma: docs/FIGMA-NOVA-FASE.md.
 
 Validação integrada desta etapa: 85 testes Python (84 aprovados, 1 Docker opcional ignorado), 11 cenários Chrome aprovados e migrações relacionais verificadas em bases temporárias. Registro: docs/ENTREGA-RECRUTAMENTO.md.
+Atualização de 07/11: Docker real aprovado em 17 testes após estabilização; regressão geral 110 testes, 109 aprovados e 1 opcional Docker ignorado na suíte principal. Histórico de etapas mostra ator e data UTC apenas para mentoria. Acessibilidade do recrutamento recebeu foco em erros, associações aos campos e rótulos contextuais; ver docs/REVISAO-ACESSIBILIDADE-RECRUTAMENTO.md. Testes de leitor de tela com pessoas continuam pendentes.
