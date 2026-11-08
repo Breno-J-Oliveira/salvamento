@@ -47,8 +47,10 @@ def protect_request():
     if request.method == "POST":
         if not secrets.compare_digest(session.get("csrf", "").encode("utf-8"), request.form.get("csrf_token", "").encode("utf-8")) or not session.get("csrf"):
             abort(400, description="A sessão do formulário expirou. Atualize a página e tente novamente.")
-        identity = str(session.get("user_id") or request.remote_addr)
-        limit = 10 if request.path in ("/login", "/register") else 40
+        auth_request = request.path in ("/login", "/register")
+        # Authentication limits follow the client address even when a session exists.
+        identity = str(request.remote_addr if auth_request else (session.get("user_id") or request.remote_addr))
+        limit = 10 if auth_request else 40
         key = (identity, request.path)
         now = time.monotonic()
         with RATE_LOCK:

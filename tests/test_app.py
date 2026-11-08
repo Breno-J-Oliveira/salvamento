@@ -198,6 +198,13 @@ class AppTests(unittest.TestCase):
         for _ in range(10):self.post('/login',{'email':'nobody@example.com','password':'x'})
         self.assertEqual(self.post('/login',{}).status_code,429)
 
+    def test_login_rate_limit_cannot_be_bypassed_with_an_authenticated_session(self):
+        for _ in range(10):
+            self.post('/login', {'email':'nobody@example.com', 'password':'x'})
+        with self.client.session_transaction() as sess:
+            sess.update(user_id=1, name='Mentor', role='mentor')
+        self.assertEqual(self.post('/login', {'email':'nobody@example.com', 'password':'x'}).status_code, 429)
+
     def test_security_headers_and_size(self):
         response=self.client.get('/login')
         self.assertEqual(response.headers['X-Frame-Options'],'DENY')
