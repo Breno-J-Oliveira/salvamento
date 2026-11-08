@@ -45,3 +45,5 @@ Esta lista registra propostas e critérios para evolução. Itens só são consi
 30. Testes de carga, acessibilidade com usuários e revisão de segurança antes de uso público.
 
 Parte dessas capacidades já existe parcialmente, como rubrica, filtros, rascunhos e isolamento local. As demais exigem implementação e, em alguns casos, definição de regras pela equipe. O cenário de treinamento não comprova resistência a fraude nem substitui uma avaliação seletiva supervisionada.
+
+Atualização: o candidato pode desistir em etapas elegíveis, com confirmação e histórico; a equipe não pode registrar ou reverter a desistência em seu lugar. A confirmação da candidatura detecta alterações do rascunho em outra aba, e o editor de perguntas detecta versões concorrentes. Essas entregas não substituem as definições de retenção de dados nem a separação de papéis.

@@ -53,7 +53,7 @@ def parse_editor(form):
     except ValueError:raise ValueError('Informe a quantidade de perguntas.')
     if not 1<=count<=15:raise ValueError('Defina entre 1 e 15 perguntas.')
     questions=[]
-    allowed={'csrf_token','question_count'}
+    allowed={'csrf_token','question_count','editor_token'}
     for index in range(count):
         prefix=f'question_{index}_'
         for name in ('id','label','type','required','option','correct'):allowed.add(prefix+name)
@@ -189,6 +189,11 @@ def register_routes(app,db,login_required,mentor_required):
         key=app.secret_key.encode('utf-8') if isinstance(app.secret_key,str) else app.secret_key
         digest=hmac.new(key,state.encode('utf-8'),hashlib.sha256).hexdigest()
         return TimestampSigner(app.secret_key,salt='recruitment-review-v1').sign(f"{a['id']}:{digest}").decode('utf-8')
+    def confirmation_token(a,answers):
+        state=json.dumps([a['id'],a['user_id'],a['form_version'],answers],ensure_ascii=False,sort_keys=True,separators=(',',':'))
+        key=app.secret_key.encode('utf-8') if isinstance(app.secret_key,str) else app.secret_key
+        digest=hmac.new(key,state.encode('utf-8'),hashlib.sha256).hexdigest()
+        return TimestampSigner(app.secret_key,salt='candidate-confirmation-v1').sign(digest).decode('utf-8')
     def job(jid):
         row=db().execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
         if not row:abort(404)
@@ -296,20 +301,32 @@ def register_routes(app,db,login_required,mentor_required):
         participant();j,a,version,qs,answers=context(jid)
         if not a:return redirect(f'/applications/{jid}/form')
         if a['status']!='draft':return redirect('/my-applications')
-        if any(q['required'] and not answers.get(q['id']) for q in qs):return redirect(f'/applications/{jid}/form')
+        if request.method=='GET' and any(q['required'] and not answers.get(q['id']) for q in qs):return redirect(f'/applications/{jid}/form')
         if request.method=='POST':
+            try:
+                signed=TimestampSigner(app.secret_key,salt='candidate-confirmation-v1').unsign(request.form.get('confirmation_token',''),max_age=8*60*60)
+            except BadSignature:
+                abort(400,description='A revisão expirou. Abra a revisão novamente antes de enviar.')
             d=db();d.execute('BEGIN IMMEDIATE')
             if not vacancies.is_open(d.execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()):abort(400,description='As inscrições estão encerradas ou pausadas. Seu rascunho foi preservado.')
-            current=d.execute('SELECT status,form_version FROM applications WHERE id=? AND user_id=?',(a['id'],session['user_id'])).fetchone()
+            current=d.execute('SELECT id,user_id,status,form_version FROM applications WHERE id=? AND user_id=?',(a['id'],session['user_id'])).fetchone()
+            if not current:
+                d.rollback();abort(404)
+            if current['status']!='draft':
+                d.rollback();return redirect('/my-applications')
             current_questions=load_questions(d,current['form_version'])
             current_answers=read_answers(d,a['id'],current_questions)
-            if current['status']=='draft' and any(q['required'] and not current_answers.get(q['id']) for q in current_questions):
-                abort(400,description='O rascunho mudou e está incompleto. Revise o formulário antes de enviar.')
+            current_token=confirmation_token(current,current_answers)
+            expected=TimestampSigner(app.secret_key,salt='candidate-confirmation-v1').unsign(current_token)
+            incomplete=any(q['required'] and not current_answers.get(q['id']) for q in current_questions)
+            if not secrets.compare_digest(signed,expected) or incomplete:
+                d.rollback()
+                return render_template('application_review.html',job=j,questions=current_questions,answers=current_answers,application=a,confirmation_token=current_token,review_conflict=True,review_incomplete=incomplete),409
             now=int(time.time())
             result=d.execute("UPDATE applications SET status='submitted',submitted_at=?,updated_at=? WHERE id=? AND user_id=? AND status='draft'",(now,now,a['id'],session['user_id']))
             if result.rowcount:d.execute('INSERT INTO application_history(application_id,actor_id,status,created_at) VALUES(?,?,?,?)',(a['id'],session['user_id'],'submitted',now))
             d.commit();flash('Candidatura enviada. Acompanhe as próximas etapas aqui.');return redirect('/my-applications')
-        return render_template('application_review.html',job=j,questions=qs,answers=answers,application=a)
+        return render_template('application_review.html',job=j,questions=qs,answers=answers,application=a,confirmation_token=confirmation_token(a,answers))
 
     @app.get('/my-applications')
     @login_required
@@ -318,6 +335,25 @@ def register_routes(app,db,login_required,mentor_required):
         # Notas internas nunca são carregadas nesta consulta.
         rows=db().execute('SELECT a.id,a.job_id,a.status,a.created_at,a.updated_at,a.feedback,j.title job_title,j.company FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.user_id=? ORDER BY a.id DESC',(session['user_id'],)).fetchall()
         return render_template('my_applications.html',applications=[dict(r) for r in rows])
+
+    @app.post('/my-applications/<int:aid>/withdraw')
+    @login_required
+    def withdraw_application(aid):
+        participant()
+        if request.form.get('confirm') != 'withdraw':
+            abort(400, description='Confirme a desistência para continuar.')
+        d=db();d.execute('BEGIN IMMEDIATE')
+        row=d.execute('SELECT status FROM applications WHERE id=? AND user_id=?',(aid,session['user_id'])).fetchone()
+        if not row:
+            d.rollback();abort(404)
+        if row['status']=='withdrawn':
+            d.rollback();flash('Esta candidatura já foi retirada.');return redirect('/my-applications')
+        if row['status'] not in ('submitted','review','interview'):
+            d.rollback();abort(409,description='Esta candidatura não pode ser retirada nesta etapa.')
+        now=int(time.time())
+        d.execute("UPDATE applications SET status='withdrawn',updated_at=? WHERE id=?",(now,aid))
+        d.execute("INSERT INTO application_history(application_id,actor_id,status,created_at) VALUES(?,?,?,?)",(aid,session['user_id'],'withdrawn',now))
+        d.commit();flash('Sua desistência foi registrada. As informações da candidatura foram preservadas.');return redirect('/my-applications')
 
     @app.get('/admin')
     @mentor_required
@@ -355,10 +391,18 @@ def register_routes(app,db,login_required,mentor_required):
     @app.route('/admin/jobs/<int:jid>/form',methods=['GET','POST'])
     @mentor_required
     def admin_job_form(jid):
-        j=job(jid);version,qs=latest(j);errors={}
+        j=job(jid);version,qs=latest(j);errors={};editor_conflict=False
+        signer=TimestampSigner(app.secret_key,salt='recruitment-form-editor-v1')
+        editor_token=signer.sign(f'{jid}:{version}').decode('utf-8')
         keys=answer_keys(db(),version)
         for q in qs:q['correct_answer']=keys.get(q['id'],'')
         if request.method=='POST':
+            try:
+                signed_job,signed_version=map(int,signer.unsign(request.form.get('editor_token',''),max_age=8*60*60).decode('utf-8').split(':'))
+                if signed_job!=jid:raise ValueError()
+                editor_token=request.form['editor_token']
+            except (BadSignature,UnicodeDecodeError,ValueError,TypeError):
+                abort(400,description='O editor expirou ou mudou de contexto. Recarregue a página antes de continuar.')
             try:questions=parse_editor(request.form)
             except ValueError as exc:
                 errors['questions']=str(exc)
@@ -368,10 +412,17 @@ def register_routes(app,db,login_required,mentor_required):
                     qs=[dict(id=request.form.get(f'question_{i}_id','')[:40],label=request.form.get(f'question_{i}_label','')[:200],type=request.form.get(f'question_{i}_type','text'),required=request.form.get(f'question_{i}_required')=='1',options=request.form.getlist(f'question_{i}_option')[:21],correct_answer=request.form.get(f'question_{i}_correct','')[:100]) for i in range(count)]
             if not errors:
                 d=db();d.execute('BEGIN IMMEDIATE')
-                version=create_version(d,jid,questions,session['user_id'])
-                d.execute('UPDATE jobs SET current_form_version=? WHERE id=?',(version,jid))
-                d.commit();flash('Nova versão do formulário salva. Inscrições existentes foram preservadas.');return redirect('/admin')
-        return render_template('admin_job_form.html',job=j,questions=qs,errors=errors),400 if errors else 200
+                current=d.execute('SELECT current_form_version FROM jobs WHERE id=?',(jid,)).fetchone()
+                if not current:
+                    d.rollback();abort(404)
+                if current['current_form_version']!=signed_version:
+                    d.rollback();qs=questions;editor_conflict=True
+                    errors['questions']='O formulário foi alterado por outra pessoa. Suas perguntas foram mantidas abaixo; copie as alterações e recarregue a página para conferir a versão atual.'
+                else:
+                    version=create_version(d,jid,questions,session['user_id'])
+                    d.execute('UPDATE jobs SET current_form_version=? WHERE id=?',(version,jid))
+                    d.commit();flash('Nova versão do formulário salva. Inscrições existentes foram preservadas.');return redirect('/admin')
+        return render_template('admin_job_form.html',job=j,questions=qs,errors=errors,editor_token=editor_token,editor_conflict=editor_conflict),409 if editor_conflict else 400 if errors else 200
 
     @app.route('/admin/applications/<int:aid>',methods=['GET','POST'])
     @mentor_required
@@ -390,6 +441,8 @@ def register_routes(app,db,login_required,mentor_required):
             current=d.execute("SELECT id,status,feedback,notes FROM applications WHERE id=? AND status!='draft'",(aid,)).fetchone()
             if not current:
                 d.rollback();abort(404)
+            if (current['status']=='withdrawn') != (status=='withdrawn'):
+                d.rollback();abort(409,description='A desistência é uma decisão do candidato e não pode ser alterada pela equipe.')
             expected=TimestampSigner(app.secret_key,salt='recruitment-review-v1').unsign(review_token(current)).decode('utf-8')
             if not secrets.compare_digest(signed,expected):
                 d.rollback();token=request.form.get('review_token','');a.update(status=status,feedback=feedback,notes=notes)

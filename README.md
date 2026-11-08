@@ -27,6 +27,8 @@ O acesso demonstrativo de mentoria herdado da equipe é `mentor@cti.local` / `me
 - Vagas públicas em `/opportunities`; gestão pela mentoria em `/admin` e `/jobs`.
 - Editor em `/admin/jobs/new`: rascunho, edição, publicação, pausa/reabertura, encerramento definitivo, prazo e metadados. Prévia restrita e proteção de edição simultânea.
 - Formulário específico por vaga, configurado em editor visual; rascunho, revisão e confirmação da candidatura.
+- Confirmação vinculada às respostas exibidas; mudanças em outra aba exigem nova revisão. O candidato pode registrar desistência nas etapas elegíveis, sem apagar respostas ou histórico.
+- O editor de perguntas detecta alterações simultâneas e preserva os campos digitados quando há conflito.
 - Formulários persistidos em tabelas relacionais SQLite: versões, perguntas, opções e respostas; não são armazenados como documentos JSON.
 - Versões das perguntas preservadas desde a abertura do formulário, retorno à vaga após cadastro/login e proteção contra submissão duplicada.
 - Avaliação seletiva simulada em três etapas por candidatura, com evidências de investigação, correlação e resposta; variantes SOC e AppSec.

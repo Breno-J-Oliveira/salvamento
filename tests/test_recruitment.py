@@ -41,10 +41,18 @@ class RecruitmentTests(unittest.TestCase):
                 if 'correct_answer' in q:data[prefix+'correct']=q['correct_answer']
         if re.fullmatch(r'/applications/\d+/form',path) and 'form_token' not in data:
             data['form_token']=self.token(int(path.split('/')[2]))
+        if re.fullmatch(r'/applications/\d+/review',path) and 'confirmation_token' not in data:
+            response=self.client.get(path)
+            match=re.search(r'name="confirmation_token" value="([^"]+)"',response.get_data(as_text=True))
+            if match:data['confirmation_token']=unescape(match.group(1))
         if re.fullmatch(r'/admin/applications/\d+',path) and 'review_token' not in data:
             response=self.client.get(path)
             match=re.search(r'name="review_token" value="([^"]+)"',response.get_data(as_text=True))
             if match:data['review_token']=unescape(match.group(1))
+        if re.fullmatch(r'/admin/jobs/\d+/form',path) and 'editor_token' not in data:
+            response=self.client.get(path)
+            match=re.search(r'name="editor_token" value="([^"]+)"',response.get_data(as_text=True))
+            if match:data['editor_token']=unescape(match.group(1))
         with self.client.session_transaction() as s:s['csrf']='test'
         return self.client.post(path,data={'csrf_token':'test',**data})
     def rows(self,sql,args=()):
@@ -98,6 +106,71 @@ class RecruitmentTests(unittest.TestCase):
         self.assertEqual(self.client.get('/admin/applications/1').status_code,403)
         self.as_user(3);self.assertNotIn(b'PUBLIC_FEEDBACK',self.client.get('/my-applications').data)
         self.assertEqual(self.client.get('/applications/1/review').status_code,302)
+    def test_withdraw_application_preserves_evidence_and_is_idempotent(self):
+        self.draft();self.post('/applications/1/review')
+        before=self.rows('SELECT question_id,value FROM application_answers ORDER BY question_id,position')
+        self.assertEqual(self.post('/my-applications/1/withdraw',{'confirm':'withdraw'}).status_code,302)
+        self.assertEqual(self.post('/my-applications/1/withdraw',{'confirm':'withdraw'}).status_code,302)
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('withdrawn',)])
+        self.assertEqual(self.rows('SELECT question_id,value FROM application_answers ORDER BY question_id,position'),before)
+        self.assertEqual(self.rows("SELECT actor_id,status FROM application_history WHERE status='withdrawn'"),[(2,'withdrawn')])
+        self.assertEqual(self.client.get('/my-applications/1/assessment').status_code,403)
+        self.as_user(1)
+        self.assertEqual(self.post('/admin/applications/1',{'status':'review','notes':'','feedback':''}).status_code,409)
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('withdrawn',)])
+    def test_withdraw_requires_owner_confirmation_and_active_stage(self):
+        self.draft()
+        self.assertEqual(self.post('/my-applications/1/withdraw',{'confirm':'withdraw'}).status_code,409)
+        self.post('/applications/1/review')
+        self.assertEqual(self.post('/my-applications/1/withdraw',{}).status_code,400)
+        self.as_user(3)
+        self.assertEqual(self.post('/my-applications/1/withdraw',{'confirm':'withdraw'}).status_code,404)
+        self.as_user(1)
+        self.assertEqual(self.post('/my-applications/1/withdraw',{'confirm':'withdraw'}).status_code,403)
+        self.as_user(2);self.write("UPDATE applications SET status='selected' WHERE id=1")
+        self.assertEqual(self.post('/my-applications/1/withdraw',{'confirm':'withdraw'}).status_code,409)
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('selected',)])
+    def test_stale_confirmation_requires_review_of_current_answers(self):
+        self.draft()
+        page=self.client.get('/applications/1/review').get_data(as_text=True)
+        stale=unescape(re.search(r'name="confirmation_token" value="([^"]+)"',page).group(1))
+        self.assertEqual(self.post('/applications/1/form',{'action':'save','q_availability':'Tarde','q_experience':'Outra experiência'}).status_code,302)
+        self.assertEqual(self.post('/applications/1/review',{'confirmation_token':stale+'x'}).status_code,400)
+        response=self.post('/applications/1/review',{'confirmation_token':stale})
+        self.assertEqual(response.status_code,409)
+        self.assertIn('Tarde',response.get_data(as_text=True))
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('draft',)])
+        token=unescape(re.search(r'name="confirmation_token" value="([^"]+)"',response.get_data(as_text=True)).group(1))
+        self.assertEqual(self.post('/applications/1/review',{'confirmation_token':token}).status_code,302)
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('submitted',)])
+    def test_stale_confirmation_rejects_incomplete_current_draft(self):
+        self.draft()
+        page=self.client.get('/applications/1/review').get_data(as_text=True)
+        stale=unescape(re.search(r'name="confirmation_token" value="([^"]+)"',page).group(1))
+        self.post('/applications/1/form',{'action':'save','q_availability':'','q_experience':'Outra experiência'})
+        response=self.post('/applications/1/review',{'confirmation_token':stale})
+        self.assertEqual(response.status_code,409)
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('draft',)])
+    def test_admin_cannot_withdraw_for_candidate(self):
+        self.draft();self.post('/applications/1/review');self.as_user(1)
+        self.assertEqual(self.post('/admin/applications/1',{'status':'withdrawn','notes':'','feedback':''}).status_code,409)
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('submitted',)])
+    def test_concurrent_form_editors_preserve_newer_version(self):
+        self.as_user(1)
+        first=self.client.get('/admin/jobs/1/form').get_data(as_text=True)
+        stale=unescape(re.search(r'name="editor_token" value="([^"]+)"',first).group(1))
+        q1=[dict(id='q',label='Pergunta mais recente',type='select',required=True,options=['A','B'],correct_answer='A')]
+        q2=[dict(id='q',label='Pergunta da outra aba',type='select',required=True,options=['X','Y'],correct_answer='Y')]
+        self.assertEqual(self.post('/admin/jobs/1/form',{'questions_json':json.dumps(q1)}).status_code,302)
+        version=self.rows('SELECT current_form_version FROM jobs WHERE id=1')[0][0]
+        self.assertEqual(self.post('/admin/jobs/1/form',{'questions_json':json.dumps(q2),'editor_token':stale+'x'}).status_code,400)
+        response=self.post('/admin/jobs/1/form',{'questions_json':json.dumps(q2),'editor_token':stale})
+        self.assertEqual(response.status_code,409)
+        self.assertIn('Pergunta da outra aba',response.get_data(as_text=True))
+        self.assertIn('Y',response.get_data(as_text=True))
+        self.assertEqual(self.rows('SELECT current_form_version FROM jobs WHERE id=1'),[(version,)])
+        self.assertEqual(self.rows('SELECT label FROM form_questions WHERE version_id=?',(version,)),[('Pergunta mais recente',)])
+        self.assertEqual(self.post('/admin/jobs/2/form',{'questions_json':json.dumps(q2),'editor_token':stale}).status_code,400)
     def test_concurrent_reviews_do_not_overwrite_and_keep_typed_fields(self):
         self.draft();self.post('/applications/1/review');self.as_user(1)
         other=self.client.application.test_client()
@@ -217,8 +290,10 @@ class RecruitmentTests(unittest.TestCase):
         def confirm():
             client=module.app.test_client()
             with client.session_transaction() as sess:sess.update(user_id=2,csrf='concurrent')
+            page=client.get('/applications/1/review').get_data(as_text=True)
+            token=unescape(re.search(r'name="confirmation_token" value="([^"]+)"',page).group(1))
             barrier.wait(timeout=5)
-            return client.post('/applications/1/review',data={'csrf_token':'concurrent'}).status_code
+            return client.post('/applications/1/review',data={'csrf_token':'concurrent','confirmation_token':token}).status_code
         with ThreadPoolExecutor(max_workers=2) as pool:
             self.assertEqual(sorted(pool.map(lambda _:confirm(),range(2))),[302,302])
         self.assertEqual(self.rows('SELECT status FROM applications'),[('submitted',)])

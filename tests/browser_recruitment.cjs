@@ -140,6 +140,16 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   await go(cp,`/applications/${demoIds[0]}/form`);await cp.getByLabel('Experiência com investigação de logs e alertas',{exact:false}).waitFor();
   await go(cp,`/applications/${demoIds[1]}/form`);await cp.getByLabel('Experiência com revisão de código e aplicações',{exact:false}).waitFor();
  });
+ await check('R15 Candidato confirma desistência e equipe acompanha o estado',async()=>{
+  await go(cp,'/my-applications');
+  const card=cp.locator('article').filter({has:cp.getByRole('heading',{name:title,exact:true})});
+  await card.getByText('Desistir desta candidatura',{exact:true}).click();
+  await card.getByRole('button',{name:'Confirmar desistência'}).click();
+  await cp.getByText('Você desistiu desta candidatura.',{exact:false}).waitFor();
+  await go(mp,`/admin/applications/${aid}`);
+  await mp.getByText('O candidato desistiu; esta candidatura não pode ser reativada pelo parecer.').waitFor();
+  assert.equal(await mp.locator('[name=status] option').count(),1);
+ });
  await check('R11 Nenhuma exceção JavaScript no percurso',async()=>assert.deepEqual(errors,[]));
 })().catch(e=>{console.error(e.stack);process.exitCode=1;}).finally(async()=>{
  fs.writeFileSync(path.join(out,'recruitment-browser-results.json'),JSON.stringify(results,null,2));console.log(JSON.stringify(results));if(browser)await browser.close();

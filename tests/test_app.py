@@ -189,7 +189,8 @@ class AppTests(unittest.TestCase):
         token=re.search(r'name="form_token" value="([^"]+)"',self.client.get('/applications/1/form').get_data(as_text=True)).group(1)
         answers={'form_token':token,'action':'review','q_availability':'Horário comercial','q_experience':'Investigação de logs em projeto acadêmico','q_portfolio':''}
         self.assertEqual(self.post('/applications/1/form',answers).status_code,302)
-        for _ in range(2):self.assertEqual(self.post('/applications/1/review').status_code,302)
+        confirmation=re.search(r'name="confirmation_token" value="([^"]+)"',self.client.get('/applications/1/review').get_data(as_text=True)).group(1)
+        for _ in range(2):self.assertEqual(self.post('/applications/1/review',{'confirmation_token':confirmation}).status_code,302)
         self.assertEqual(self.scalar('SELECT COUNT(*) FROM applications'),1)
         self.post('/logout'); self.login(mentor=True); self.post('/jobs/1/toggle'); self.post('/logout'); self.login()
         self.assertEqual(self.post('/jobs/1/apply').status_code,404)
