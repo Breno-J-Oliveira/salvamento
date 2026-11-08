@@ -97,7 +97,17 @@ document.querySelectorAll('[data-question-editor]').forEach(form => {
     const type = row.querySelector('[data-question-type]');
     const options = row.querySelector('[data-question-options]');
     const optionsLabel = row.querySelector('[data-question-options-label]');
-    function showOptions() { optionsLabel.hidden = !['select','multiselect'].includes(type.value); options.required = !optionsLabel.hidden; }
+    const answer = row.querySelector('[data-question-answer]');
+    const answerLabel = row.querySelector('[data-question-answer-label]');
+    function refreshAnswer() {
+      const selected = answer.value || answer.dataset.current || '';
+      answer.replaceChildren(new Option('Sem correção automática', ''));
+      options.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean).forEach(value => answer.add(new Option(value, value)));
+      if (Array.from(answer.options).some(option => option.value === selected)) answer.value = selected;
+      answer.dataset.current = '';
+    }
+    function showOptions() { optionsLabel.hidden = !['select','multiselect'].includes(type.value); options.required = !optionsLabel.hidden; answerLabel.hidden = type.value !== 'select'; refreshAnswer(); }
+    options.addEventListener('input', refreshAnswer);
     type.addEventListener('change', showOptions); showOptions();
     row.querySelector('[data-question-remove]').addEventListener('click', () => { row.remove(); syncCount('Pergunta removida. Salve para aplicar à próxima versão.'); add.focus(); });
   }
@@ -125,6 +135,7 @@ document.querySelectorAll('[data-question-editor]').forEach(form => {
     questions.forEach((question, index) => {
       const prefix = 'question_' + index + '_';
       hidden(prefix + 'id', question.id); hidden(prefix + 'label', question.label); hidden(prefix + 'type', question.type); hidden(prefix + 'required', question.required ? '1' : '0');
+      const row = list.children[index]; hidden(prefix + 'correct', question.type === 'select' ? row.querySelector('[data-question-answer]').value : '');
       question.options.forEach(option => hidden(prefix + 'option', option));
     });
   });

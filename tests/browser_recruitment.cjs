@@ -38,10 +38,12 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   await rows.nth(0).locator('[data-question-type]').selectOption('select');
   await rows.nth(0).locator('[data-question-required]').check();
   await rows.nth(0).locator('[data-question-options]').fill('Manhã\nTarde');
+  await rows.nth(0).locator('[data-question-answer]').selectOption('Tarde');
   await rows.nth(1).locator('[data-question-label]').fill('Como investigaria um alerta?');
   await rows.nth(1).locator('[data-question-type]').selectOption('textarea');
   await rows.nth(1).locator('[data-question-required]').check();
   await mp.getByRole('button',{name:'Salvar perguntas',exact:true}).click();await mp.waitForURL('**/admin');
+  await go(mp,`/admin/jobs/${jid}/form`);assert.equal(await mp.locator('[data-question-row]').first().locator('[data-question-answer]').inputValue(),'Tarde');
  });
  await check('R03 Cadastro e login preservam a vaga escolhida',async()=>{
   await go(cp,`/opportunities/${jid}`);await cp.locator(`a[href="/applications/${jid}/form"]`).click();
@@ -51,7 +53,8 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   await cp.getByLabel('Senha',{exact:true}).fill(password);await cp.getByRole('button',{name:'Criar minha conta'}).click();
   await cp.waitForURL(/\/login/);await cp.getByLabel('E-mail',{exact:true}).fill(email);await cp.getByLabel('Senha',{exact:true}).fill(password);
   await cp.getByRole('button',{name:'Entrar na plataforma'}).click();await cp.waitForURL(`**/applications/${jid}/form`);
-  await cp.locator('[name=q_availability]').waitFor();
+  await cp.getByRole('radio',{name:'Tarde'}).waitFor();
+  assert.equal(await cp.getByText('Gabarito:',{exact:false}).count(),0);
  });
  await check('R04 Revisão rejeita ausência obrigatória e mantém formulário',async()=>{
   await cp.getByRole('button',{name:'Revisar inscrição'}).click();
@@ -59,10 +62,10 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   assert.ok(cp.url().endsWith(`/applications/${jid}/form`));
  });
  await check('R05 Rascunho persiste e confirmação acontece depois da revisão',async()=>{
-  await cp.locator('[name=q_availability]').selectOption('Tarde');
+  await cp.getByRole('radio',{name:'Tarde'}).check();
   await cp.locator('[name=q_experience]').fill('Analisaria origem, contexto, identidade e sequência dos eventos antes de decidir pela contenção.');
   await cp.getByRole('button',{name:'Salvar rascunho'}).click();await cp.getByText('Rascunho recuperado.',{exact:false}).waitFor();
-  await cp.reload();assert.equal(await cp.locator('[name=q_availability]').inputValue(),'Tarde');
+  await cp.reload();assert.ok(await cp.getByRole('radio',{name:'Tarde'}).isChecked());
   await cp.getByRole('button',{name:'Revisar inscrição'}).click();await cp.waitForURL(`**/applications/${jid}/review`);
   await cp.getByRole('heading',{name:'Confira antes de enviar.'}).waitFor();
   await cp.getByRole('button',{name:'Confirmar candidatura'}).click();await cp.waitForURL('**/my-applications');
@@ -82,6 +85,7 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   await go(mp,'/admin');const entry=mp.locator('tr').filter({hasText:title}).filter({hasText:'Candidato QA Sintético'});
   const link=entry.getByRole('link').first();const href=await link.getAttribute('href');aid=Number(href.match(/\d+/)[0]);await link.click();
   await mp.getByText('Analisaria origem, contexto, identidade e sequência dos eventos antes de decidir pela contenção.',{exact:true}).waitFor();
+  await mp.getByText('1 de 1 respostas correspondem ao gabarito.',{exact:false}).waitFor();
   await mp.locator('[name=status]').selectOption('interview');await mp.locator('[name=notes]').fill('QA-NOTA-INTERNA-RESTRITA-'+stamp);
   await mp.locator('[name=feedback]').fill('Análise recebida. Próxima etapa: entrevista com a equipe.');
   await mp.getByRole('button',{name:'Salvar etapa e parecer'}).click();await mp.waitForURL(`**/admin/applications/${aid}`);

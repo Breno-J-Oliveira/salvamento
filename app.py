@@ -163,6 +163,11 @@ def init_db():
                 ("Clique em 'Iniciar ambiente' para criar a sua intranet isolada e acesse o endereço mostrado. "
                  "Existe um arquivo que os robôs de busca foram instruídos a ignorar. Encontre a flag.",))
     seed_catalog(con)
+    con.execute("INSERT INTO challenges(title,category,side,points,description,hint,url,flag_hash,image,container_port) "
+                "SELECT ?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM challenges WHERE title=?)",
+                ("Incidente em andamento", "Resposta a incidentes", "Blue Team", 300,
+                 "Investigue os registros disponíveis no servidor simulado. Identifique o endereço IP associado à atividade maliciosa e envie CTF{ip}.",
+                 "", "", "", "cti-lab/incident-01", 5000, "Incidente em andamento"))
     con.commit(); con.close()
 
 def db():
@@ -333,7 +338,7 @@ def challenge(cid):
             d.rollback()
             flash("Informe uma flag com até 512 caracteres.")
             return redirect(f"/challenge/{cid}")
-        if c["image"]:   # desafio com ambiente: a flag é única por participante
+        if c["image"]:   # desafio com ambiente: resposta vinculada à instância
             hashes = [r[0] for r in d.execute("SELECT flag_hash FROM instances WHERE user_id=? AND challenge_id=? AND active=1 AND expires_at>=?", (uid, cid, int(time.time())))]
             if not hashes:
                 d.rollback()
@@ -400,8 +405,9 @@ def start_env_locked(cid):
         return back
     now = int(time.time())
     try:
+        answer = f"CTF{{192.0.2.{1 + int(flag[4:6], 16) % 254}}}" if c["image"] == "cti-lab/incident-01" else flag
         d.execute("INSERT INTO instances(user_id,challenge_id,container,port,flag_hash,started_at,expires_at,active) VALUES(?,?,?,?,?,?,?,1)",
-                  (uid, cid, name, port, h(flag), now, now + TTL))
+                  (uid, cid, name, port, h(answer), now, now + TTL))
         d.commit()
     except sqlite3.Error:
         d.rollback()

@@ -1,6 +1,9 @@
 """Recrutamento: formulários versionados e inscrições independentes do treino."""
 import json
+import hashlib
+import hmac
 import re
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 import vacancies
@@ -28,14 +31,20 @@ def validate_questions(questions):
         raise ValueError('Defina entre 1 e 15 perguntas.')
     clean=[];seen=set()
     for q in questions:
-        if not isinstance(q,dict) or set(q)-{'id','label','type','required','options'}:
+        if not isinstance(q,dict) or set(q)-{'id','label','type','required','options','correct_answer'}:
             raise ValueError('Cada pergunta precisa de identificador, rótulo, tipo, obrigatoriedade e opções.')
         key=q.get('id','');label=q.get('label','');kind=q.get('type','text');required=q.get('required',False);options=q.get('options',[])
         if not isinstance(key,str) or not re.fullmatch('[a-zA-Z][a-zA-Z0-9_]{0,39}',key) or key in seen or not isinstance(label,str) or not 3<=len(label.strip())<=200 or kind not in ('text','textarea','select','multiselect','number','url') or not isinstance(required,bool):
             raise ValueError('Confira identificadores únicos, rótulos, tipos e obrigatoriedade.')
-        if not isinstance(options,list) or len(options)>20 or any(not isinstance(o,str) or not 1<=len(o.strip())<=100 for o in options) or len(set(options))!=len(options) or (kind in ('select','multiselect') and not options):
+        if not isinstance(options,list) or len(options)>20 or any(not isinstance(o,str) or not 1<=len(o.strip())<=100 for o in options) or (kind in ('select','multiselect') and not options):
             raise ValueError('Defina opções únicas e válidas para as seleções.')
-        seen.add(key);clean.append(dict(id=key,label=label.strip(),type=kind,required=required,options=options if kind in ('select','multiselect') else []))
+        options=[option.strip() for option in options]
+        if len(set(options))!=len(options):raise ValueError('Defina opções únicas e válidas para as seleções.')
+        correct=q.get('correct_answer','')
+        if not isinstance(correct,str):raise ValueError('Confira o gabarito da pergunta.')
+        correct=correct.strip()
+        if correct and (kind!='select' or correct not in options):raise ValueError('O gabarito deve ser uma das opções de escolha única.')
+        seen.add(key);clean.append(dict(id=key,label=label.strip(),type=kind,required=required,options=options if kind in ('select','multiselect') else [],correct_answer=correct))
     return clean
 
 
@@ -47,12 +56,13 @@ def parse_editor(form):
     allowed={'csrf_token','question_count'}
     for index in range(count):
         prefix=f'question_{index}_'
-        for name in ('id','label','type','required','option'):allowed.add(prefix+name)
+        for name in ('id','label','type','required','option','correct'):allowed.add(prefix+name)
         if form.get(prefix+'required') not in ('0','1'):
             raise ValueError('Defina se a pergunta é obrigatória.')
         for name in ('id','label','type','required'):
             if len(form.getlist(prefix+name))!=1:raise ValueError('Confira os campos de cada pergunta.')
-        questions.append(dict(id=form.get(prefix+'id',''),label=form.get(prefix+'label',''),type=form.get(prefix+'type',''),required=form.get(prefix+'required')=='1',options=form.getlist(prefix+'option')))
+        if len(form.getlist(prefix+'correct'))>1:raise ValueError('Confira o gabarito de cada pergunta.')
+        questions.append(dict(id=form.get(prefix+'id',''),label=form.get(prefix+'label',''),type=form.get(prefix+'type',''),required=form.get(prefix+'required')=='1',options=form.getlist(prefix+'option'),correct_answer=form.get(prefix+'correct','')))
     if set(form)-allowed:raise ValueError('O editor contém campos desconhecidos. Recarregue a página.')
     return validate_questions(questions)
 
@@ -66,12 +76,18 @@ def load_questions(con,version):
     return result
 
 
+def answer_keys(con,version):
+    return dict(con.execute('SELECT q.field_key,k.correct_value FROM form_questions q JOIN form_answer_keys k ON k.question_id=q.id WHERE q.version_id=?',(version,)))
+
+
 def create_version(con,jid,questions,actor=None):
     version=con.execute('INSERT INTO job_form_versions(job_id,created_at,created_by) VALUES(?,?,?)',(jid,int(time.time()),actor)).lastrowid
     for position,q in enumerate(questions):
         qid=con.execute('INSERT INTO form_questions(version_id,field_key,label,kind,required,position) VALUES(?,?,?,?,?,?)',(version,q['id'],q['label'],q['type'],int(q['required']),position)).lastrowid
         for i,option in enumerate(q['options']):
             con.execute('INSERT INTO form_options(question_id,value,position) VALUES(?,?,?)',(qid,option,i))
+        if q.get('correct_answer'):
+            con.execute('INSERT INTO form_answer_keys(question_id,correct_value) VALUES(?,?)',(qid,q['correct_answer']))
     return version
 
 
@@ -121,6 +137,7 @@ def migrate(con):
     con.execute('CREATE INDEX IF NOT EXISTS idx_job_form_versions_relational ON job_form_versions(job_id,id)')
     con.execute('CREATE TABLE IF NOT EXISTS form_questions(id INTEGER PRIMARY KEY,version_id INTEGER NOT NULL REFERENCES job_form_versions(id),field_key TEXT NOT NULL,label TEXT NOT NULL,kind TEXT NOT NULL,required INTEGER NOT NULL CHECK(required IN(0,1)),position INTEGER NOT NULL,UNIQUE(version_id,field_key))')
     con.execute('CREATE TABLE IF NOT EXISTS form_options(question_id INTEGER NOT NULL REFERENCES form_questions(id),value TEXT NOT NULL,position INTEGER NOT NULL,PRIMARY KEY(question_id,position),UNIQUE(question_id,value))')
+    con.execute('CREATE TABLE IF NOT EXISTS form_answer_keys(question_id INTEGER PRIMARY KEY REFERENCES form_questions(id),correct_value TEXT NOT NULL,FOREIGN KEY(question_id,correct_value) REFERENCES form_options(question_id,value))')
     con.execute('CREATE TABLE IF NOT EXISTS application_answers(application_id INTEGER NOT NULL REFERENCES applications(id),question_id INTEGER NOT NULL REFERENCES form_questions(id),position INTEGER NOT NULL,value TEXT NOT NULL,PRIMARY KEY(application_id,question_id,position))')
     con.execute('CREATE TABLE IF NOT EXISTS application_history(id INTEGER PRIMARY KEY,application_id INTEGER NOT NULL REFERENCES applications(id),actor_id INTEGER NOT NULL REFERENCES users(id),status TEXT NOT NULL,created_at INTEGER NOT NULL)')
     if not con.execute("SELECT 1 FROM recruitment_migrations WHERE name='relational_forms_v1'").fetchone():
@@ -167,6 +184,11 @@ def register_routes(app,db,login_required,mentor_required):
     app.context_processor(lambda:dict(recruitment_statuses=STATUSES))
     def form_signer():
         return TimestampSigner(app.secret_key,salt='recruitment-form-version-v2')
+    def review_token(a):
+        state=json.dumps([a['status'],a['feedback'] or '',a['notes'] or ''],ensure_ascii=False,separators=(',',':'))
+        key=app.secret_key.encode('utf-8') if isinstance(app.secret_key,str) else app.secret_key
+        digest=hmac.new(key,state.encode('utf-8'),hashlib.sha256).hexdigest()
+        return TimestampSigner(app.secret_key,salt='recruitment-review-v1').sign(f"{a['id']}:{digest}").decode('utf-8')
     def job(jid):
         row=db().execute('SELECT * FROM jobs WHERE id=?',(jid,)).fetchone()
         if not row:abort(404)
@@ -334,6 +356,8 @@ def register_routes(app,db,login_required,mentor_required):
     @mentor_required
     def admin_job_form(jid):
         j=job(jid);version,qs=latest(j);errors={}
+        keys=answer_keys(db(),version)
+        for q in qs:q['correct_answer']=keys.get(q['id'],'')
         if request.method=='POST':
             try:questions=parse_editor(request.form)
             except ValueError as exc:
@@ -341,7 +365,7 @@ def register_routes(app,db,login_required,mentor_required):
                 try:count=min(15,max(0,int(request.form.get('question_count','0'))))
                 except ValueError:count=0
                 if count:
-                    qs=[dict(id=request.form.get(f'question_{i}_id','')[:40],label=request.form.get(f'question_{i}_label','')[:200],type=request.form.get(f'question_{i}_type','text'),required=request.form.get(f'question_{i}_required')=='1',options=request.form.getlist(f'question_{i}_option')[:21]) for i in range(count)]
+                    qs=[dict(id=request.form.get(f'question_{i}_id','')[:40],label=request.form.get(f'question_{i}_label','')[:200],type=request.form.get(f'question_{i}_type','text'),required=request.form.get(f'question_{i}_required')=='1',options=request.form.getlist(f'question_{i}_option')[:21],correct_answer=request.form.get(f'question_{i}_correct','')[:100]) for i in range(count)]
             if not errors:
                 d=db();d.execute('BEGIN IMMEDIATE')
                 version=create_version(d,jid,questions,session['user_id'])
@@ -354,16 +378,31 @@ def register_routes(app,db,login_required,mentor_required):
     def admin_application(aid):
         row=db().execute("SELECT a.*,u.name,u.email,j.title job_title FROM applications a JOIN users u ON u.id=a.user_id JOIN jobs j ON j.id=a.job_id WHERE a.id=? AND a.status!='draft'",(aid,)).fetchone()
         if not row:abort(404)
-        a=dict(row)
+        a=dict(row);errors={};response_status=200;token=review_token(a)
         if request.method=='POST':
             status=request.form.get('status','');feedback=request.form.get('feedback','').strip();notes=request.form.get('notes','').strip()
             if status not in STATUSES or status=='draft' or len(feedback)>4000 or len(notes)>4000:abort(400,description='Confira a etapa e limite cada parecer a 4000 caracteres.')
+            try:
+                signed=TimestampSigner(app.secret_key,salt='recruitment-review-v1').unsign(request.form.get('review_token',''),max_age=8*60*60).decode('utf-8')
+            except (BadSignature,UnicodeDecodeError):
+                abort(400,description='A revisão expirou. Recarregue a página antes de continuar.')
             now=int(time.time());d=db();d.execute('BEGIN IMMEDIATE')
-            old_status=d.execute('SELECT status FROM applications WHERE id=?',(aid,)).fetchone()[0]
-            d.execute('UPDATE applications SET status=?,feedback=?,notes=?,updated_at=? WHERE id=?',(status,feedback,notes,now,aid))
-            if status!=old_status:d.execute('INSERT INTO application_history(application_id,actor_id,status,created_at) VALUES(?,?,?,?)',(aid,session['user_id'],status,now))
-            d.commit();flash('Parecer salvo. Somente o feedback compartilhável será apresentado ao candidato.');return redirect(f'/admin/applications/{aid}')
+            current=d.execute("SELECT id,status,feedback,notes FROM applications WHERE id=? AND status!='draft'",(aid,)).fetchone()
+            if not current:
+                d.rollback();abort(404)
+            expected=TimestampSigner(app.secret_key,salt='recruitment-review-v1').unsign(review_token(current)).decode('utf-8')
+            if not secrets.compare_digest(signed,expected):
+                d.rollback();token=request.form.get('review_token','');a.update(status=status,feedback=feedback,notes=notes)
+                errors['review']='Esta candidatura foi alterada por outra pessoa. Seus textos foram mantidos abaixo; copie-os e recarregue a página para conferir a versão atual antes de salvar novamente.'
+                response_status=409
+            else:
+                d.execute('UPDATE applications SET status=?,feedback=?,notes=?,updated_at=? WHERE id=?',(status,feedback,notes,now,aid))
+                if status!=current['status']:d.execute('INSERT INTO application_history(application_id,actor_id,status,created_at) VALUES(?,?,?,?)',(aid,session['user_id'],status,now))
+                d.commit();flash('Parecer salvo. Somente o feedback compartilhável será apresentado ao candidato.');return redirect(f'/admin/applications/{aid}')
         qs=load_questions(db(),a['form_version']);answers=read_answers(db(),aid,qs);a.update(questions=qs,answers=answers)
+        keys=answer_keys(db(),a['form_version'])
+        items=[dict(label=q['label'],answer=answers.get(q['id'],''),correct_answer=keys[q['id']],correct=bool(answers.get(q['id'],'')) and answers[q['id']]==keys[q['id']]) for q in qs if q['id'] in keys]
+        grading=dict(items=items,correct=sum(item['correct'] for item in items),total=len(items))
         history=[]
         for event in db().execute('''SELECT h.id,h.status,h.created_at,h.actor_id,
                 COALESCE(NULLIF(u.name,''),'Usuário indisponível') actor_name
@@ -376,4 +415,4 @@ def register_routes(app,db,login_required,mentor_required):
             except (TypeError, ValueError, OverflowError):
                 item.update(created_at_label='Data indisponível',created_at_iso='')
             history.append(item)
-        return render_template('admin_application.html',application=a,questions=qs,answers=answers,history=history)
+        return render_template('admin_application.html',application=a,questions=qs,answers=answers,history=history,errors=errors,review_token=token,grading=grading),response_status

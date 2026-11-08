@@ -19,8 +19,9 @@ O acesso demonstrativo de mentoria herdado da equipe é `mentor@cti.local` / `me
 ## Fluxos disponíveis
 
 - Cadastro, login, logout e edição de nome/equipe.
-- Arenas com busca e filtro, 12 desafios, dicas e validação de flags.
+- Arenas com busca e filtro, desafios de treino, dicas quando disponíveis e validação de respostas.
 - Intranet Docker individual com flag única, porta local, limite de instâncias e expiração de 60 minutos.
+- Investigação final em laboratório Docker isolado: captura fictícia de servidor com registros de acesso, eventos e processos, sem dicas. Os dados mudam por instância; trata-se de treinamento, sem garantia antifraude para seleção real.
 - Ranking calculado a partir de desafios resolvidos, sem duplicar pontos por reenvio.
 - Painel de mentoria, avaliação de quatro competências e dossiê com histórico imprimível.
 - Vagas públicas em `/opportunities`; gestão pela mentoria em `/admin` e `/jobs`.

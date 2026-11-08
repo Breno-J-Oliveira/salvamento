@@ -11,7 +11,8 @@ import urllib.request
 BASE = os.path.dirname(os.path.abspath(__file__))
 NETWORK = "cti-lab-net"
 LABEL = "cti-lab=1"
-IMAGE_DIRS = {"cti-lab/web-01": os.path.join(BASE, "challenges", "web-01")}
+IMAGE_DIRS = {"cti-lab/web-01": os.path.join(BASE, "challenges", "web-01"),
+              "cti-lab/incident-01": os.path.join(BASE, "challenges", "incident-01")}
 NAME = re.compile(r"lab-u[0-9]+-c[0-9]+-[a-f0-9]{6,32}\Z")
 QUERY_TIMEOUT = 5
 STOP_TIMEOUT = 20

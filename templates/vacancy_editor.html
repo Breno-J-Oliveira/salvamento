@@ -9,6 +9,7 @@
 {% if is_conflict|default(false) %}<p class="notice">Outra pessoa atualizou esta vaga. Suas alterações continuam nos campos abaixo. <a href="/admin/jobs/{{ job.id }}/edit">Recarregue os dados atuais</a> antes de salvar novamente.</p>{% endif %}
 {% if job and job.status == 'closed' %}<p class="notice">As inscrições estão encerradas. Você pode corrigir o conteúdo, mas a vaga não será reaberta. As candidaturas recebidas continuam disponíveis para avaliação.</p>{% elif job and job.status == 'draft' %}<p class="notice">Este rascunho só é visível à equipe. Configure as perguntas e confira a prévia antes de publicar.</p>{% endif %}
 <section class="card recruitment-form vacancy-editor"><h2>Informações da oportunidade</h2><p class="field-help">Título e área são necessários no rascunho. Empresa e descrição também precisam estar completos para publicar. O prazo é opcional.</p>
+{% if not job %}<p class="notice">Para personalizar a seleção, salve primeiro o rascunho. Na próxima tela você poderá configurar perguntas de escolha única, múltipla escolha e respostas escritas antes de publicar.</p>{% endif %}
 <form method="post" data-loading="Salvando vaga…">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 {% if job %}<input type="hidden" name="revision" value="{{ values.get('revision', job.revision) }}">{% endif %}

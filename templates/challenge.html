@@ -18,7 +18,7 @@
 </details>{% endif %}</div>
 <div class="challenge-actions">{% if c.image %}<section class="card lab-card">
 <h2>Seu ambiente virtual</h2>{% if inst %}{% if inst.available %}<span class="tag blueteam">Ambiente iniciado</span>
-<p>Acesse a intranet para investigar as pistas.</p>
+<p>Acesse o ambiente para investigar os registros disponíveis.</p>
 <a class="button secondary full" href="http://127.0.0.1:{{ inst.port }}" target="_blank" rel="noopener noreferrer">Abrir laboratório</a>
 <p class="mono">127.0.0.1:{{ inst.port }}</p>
 {% else %}<p class="msg" role="status">Não foi possível confirmar o estado do Docker. Abra o Docker Desktop e atualize a página. Seu registro de ambiente foi preservado.</p>{% endif %}
@@ -26,7 +26,7 @@
 <form method="post" action="/challenge/{{ c.id }}/stop">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="danger full">Encerrar ambiente</button>
-</form>{% else %}<p>Inicie uma instância individual para investigar a intranet e encontrar sua flag.</p>
+</form>{% else %}<p>Inicie uma instância individual para investigar o ambiente.</p>
 <form method="post" action="/challenge/{{ c.id }}/start" data-loading="Preparando ambiente…">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="full">Iniciar ambiente</button>

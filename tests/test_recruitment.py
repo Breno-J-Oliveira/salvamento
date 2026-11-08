@@ -38,8 +38,13 @@ class RecruitmentTests(unittest.TestCase):
             for i,q in enumerate(questions):
                 prefix=f'question_{i}_'
                 data.update({prefix+'id':q['id'],prefix+'label':q['label'],prefix+'type':q['type'],prefix+'required':'1' if q['required'] else '0',prefix+'option':q.get('options',[])})
+                if 'correct_answer' in q:data[prefix+'correct']=q['correct_answer']
         if re.fullmatch(r'/applications/\d+/form',path) and 'form_token' not in data:
             data['form_token']=self.token(int(path.split('/')[2]))
+        if re.fullmatch(r'/admin/applications/\d+',path) and 'review_token' not in data:
+            response=self.client.get(path)
+            match=re.search(r'name="review_token" value="([^"]+)"',response.get_data(as_text=True))
+            if match:data['review_token']=unescape(match.group(1))
         with self.client.session_transaction() as s:s['csrf']='test'
         return self.client.post(path,data={'csrf_token':'test',**data})
     def rows(self,sql,args=()):
@@ -93,6 +98,20 @@ class RecruitmentTests(unittest.TestCase):
         self.assertEqual(self.client.get('/admin/applications/1').status_code,403)
         self.as_user(3);self.assertNotIn(b'PUBLIC_FEEDBACK',self.client.get('/my-applications').data)
         self.assertEqual(self.client.get('/applications/1/review').status_code,302)
+    def test_concurrent_reviews_do_not_overwrite_and_keep_typed_fields(self):
+        self.draft();self.post('/applications/1/review');self.as_user(1)
+        other=self.client.application.test_client()
+        with other.session_transaction() as session:session.update(user_id=1,csrf='test')
+        page=other.get('/admin/applications/1').get_data(as_text=True)
+        stale=unescape(re.search(r'name="review_token" value="([^"]+)"',page).group(1))
+        self.assertEqual(other.post('/admin/applications/1',data={'csrf_token':'test','status':'review','review_token':stale+'x'}).status_code,400)
+        self.assertEqual(self.post('/admin/applications/1',{'status':'interview','notes':'Primeiro avaliador','feedback':'Atualizado'}).status_code,302)
+        response=other.post('/admin/applications/1',data={'csrf_token':'test','review_token':stale,'status':'review','notes':'Segundo avaliador','feedback':'Texto preservado'})
+        self.assertEqual(response.status_code,409)
+        self.assertIn('Segundo avaliador',response.get_data(as_text=True))
+        self.assertIn('Texto preservado',response.get_data(as_text=True))
+        self.assertEqual(self.rows('SELECT status,notes,feedback FROM applications'),[('interview','Primeiro avaliador','Atualizado')])
+        self.assertEqual(self.rows('SELECT COUNT(*) FROM application_history'),[(2,)])
     def test_admin_does_not_see_drafts_and_legacy_cannot_bypass(self):
         self.draft();self.as_user(1)
         self.assertEqual(self.client.get('/admin/applications/1').status_code,404)
@@ -102,6 +121,57 @@ class RecruitmentTests(unittest.TestCase):
     def test_questions_schema_validation(self):
         for raw in ['{}','[]','[null]',json.dumps([dict(id='same',label='Question',type='text'),dict(id='same',label='Question',type='text')]),json.dumps([dict(id='x',label='Question',type='select',options=[])]),json.dumps([dict(id='x',label='Question',type='text',required='yes')])]:
             with self.assertRaises(ValueError):recruitment.validate_questions(json.loads(raw))
+
+    def test_choice_options_are_trimmed_and_duplicates_rejected(self):
+        question=dict(id='area',label='Área preferida?',type='select',required=True,options=[' Ataque ', 'Defesa'])
+        self.assertEqual(recruitment.validate_questions([question])[0]['options'],['Ataque','Defesa'])
+        question['options']=['Ataque',' Ataque ']
+        with self.assertRaises(ValueError):recruitment.validate_questions([question])
+
+    def test_single_choice_rejects_multiple_submitted_values(self):
+        self.as_user(1)
+        question=dict(id='area',label='Área preferida?',type='select',required=True,options=['Ataque','Defesa'])
+        self.assertEqual(self.post('/admin/jobs/1/form',{'questions_json':json.dumps([question])}).status_code,302)
+        self.as_user(2);token=self.token()
+        data=MultiDict([('csrf_token','test'),('form_token',token),('action','review'),('q_area','Ataque'),('q_area','Defesa')])
+        self.assertEqual(self.client.post('/applications/1/form',data=data).status_code,400)
+        self.assertEqual(self.rows('SELECT COUNT(*) FROM applications'),[(0,)])
+
+    def test_optional_answer_key_is_versioned_private_and_scored_for_evaluator(self):
+        from flask import template_rendered
+        question=dict(id='area',label='Área?',type='select',required=True,options=['Ataque','Defesa'],correct_answer='Defesa')
+        self.as_user(1);self.assertEqual(self.post('/admin/jobs/1/form',{'questions_json':json.dumps([question])}).status_code,302)
+        self.as_user(2);captured=[]
+        def capture(sender,template,context,**extra):captured.append((template.name,context))
+        with template_rendered.connected_to(capture,module.app):
+            self.assertEqual(self.client.get('/applications/1/form').status_code,200)
+        ctx=next(c for n,c in captured if n=='application_form.html')
+        self.assertNotIn('correct_answer',ctx['questions'][0]);self.assertNotIn('grading',ctx)
+        self.assertEqual(self.post('/applications/1/form',{'action':'review','q_area':'Defesa'}).status_code,302)
+        self.assertEqual(self.post('/applications/1/review').status_code,302)
+        self.as_user(1);question['correct_answer']='Ataque'
+        self.assertEqual(self.post('/admin/jobs/1/form',{'questions_json':json.dumps([question])}).status_code,302)
+        captured=[]
+        with template_rendered.connected_to(capture,module.app):self.assertEqual(self.client.get('/admin/applications/1').status_code,200)
+        grading=next(c['grading'] for n,c in captured if n=='admin_application.html')
+        self.assertEqual((grading['correct'],grading['total']),(1,1))
+        self.assertEqual(grading['items'][0]['correct_answer'],'Defesa')
+        self.assertEqual(self.rows('SELECT COUNT(*) FROM form_answer_keys'),[(2,)])
+        self.assertEqual(self.rows('SELECT status FROM applications'),[('submitted',)])
+        self.as_user(3)
+        self.assertEqual(self.post('/applications/1/form',{'action':'review','q_area':'Defesa'}).status_code,302)
+        self.assertEqual(self.post('/applications/1/review').status_code,302)
+        self.as_user(1);captured=[]
+        with template_rendered.connected_to(capture,module.app):self.assertEqual(self.client.get('/admin/applications/2').status_code,200)
+        grading=next(c['grading'] for n,c in captured if n=='admin_application.html')
+        self.assertEqual((grading['correct'],grading['total']),(0,1))
+        self.assertEqual(self.rows('SELECT status FROM applications ORDER BY id'),[('submitted',),('submitted',)])
+
+    def test_answer_key_requires_matching_single_choice_option(self):
+        q=dict(id='q',label='Pergunta?',type='select',required=True,options=['Sim','Não'],correct_answer='Talvez')
+        with self.assertRaises(ValueError):recruitment.validate_questions([q])
+        q.update(type='multiselect',correct_answer='Sim')
+        with self.assertRaises(ValueError):recruitment.validate_questions([q])
 
     def test_custom_form_choices_persist_and_are_visible_only_to_evaluator(self):
         questions=[dict(id='area',label='Qual área?',type='select',required=True,options=['Ataque','Defesa']),
