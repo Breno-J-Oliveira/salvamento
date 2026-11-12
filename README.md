@@ -1,3 +1,5 @@
+Laboratórios acompanhados sem Docker estão em `/remote-labs`. A primeira integração reserva uma VM Linux previamente preparada e conecta um terminal por comando ao painel do mentor. Preparação do servidor Windows/SENAI, operação e limitações em [Laboratórios remotos](docs/LABORATORIOS-REMOTOS.md). A criação automática pelo VirtualBox segue planejada no início do `claude.md`.
+
 # Purple Talent
 
 Novos sistemas internos: a mentoria cria desafios em `/admin/challenges`, prepara/atribui avaliações de funcionários em `/admin/assessments` e verifica disponibilidade em `/admin/laboratory-status`. A pessoa avaliada acessa `/my-assessments`. [Entrega, funcionamento e limites](docs/ENTREGA-SISTEMAS-INTERNOS.md). A landing e autenticação agora usam elementos HTML/CSS no lugar das artes geradas.

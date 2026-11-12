@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Laboratórios remotos{% endblock %}
+{% block content %}
+{% set mentor = session.role == 'mentor' %}
+{% set available = machines|selectattr('online')|selectattr('status', 'equalto', 'available')|list %}
+<section class="page-heading remote-heading">
+  <div><h1>{{ 'Acompanhar laboratórios' if mentor else 'Laboratório remoto' }}</h1><p>{{ 'Abra uma sessão para acompanhar os comandos e resultados e registrar suas observações.' if mentor else 'Investigue em uma máquina Linux conectada e acompanhe o resultado dos seus comandos.' }}</p></div>
+  <a class="button secondary" href="/remote-labs">Atualizar disponibilidade</a>
+</section>
+{% if not mentor %}
+<section class="card remote-start">
+  <div><h2>Iniciar uma investigação</h2><p>A sessão tem duração de até 30 minutos. Cada comando é executado no ambiente reservado para você.</p>
+    {% if available %}<p class="remote-availability"><span class="remote-dot"></span>Há ambiente conectado disponível.</p>{% else %}<p class="remote-empty" role="status">Nenhum ambiente conectado disponível agora. A equipe precisa conectar uma máquina de laboratório ou liberar uma nova sessão.</p>{% endif %}
+  </div>
+  <form action="/remote-labs/start" method="post" class="remote-start-form" data-loading="Reservando ambiente…">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="remote-consent"><input type="checkbox" name="consent" value="yes" required {% if not available %}disabled{% endif %}><span>Estou ciente de que meus comandos e resultados ficam registrados e podem ser acompanhados pela mentoria. Vou usar somente dados fictícios e os recursos deste laboratório.</span></label>
+    <button {% if not available %}disabled{% endif %}>Iniciar laboratório</button>
+  </form>
+</section>
+{% endif %}
+<section aria-labelledby="remote-sessions-title" class="remote-sessions">
+  <div class="remote-section-heading"><h2 id="remote-sessions-title">{{ 'Sessões dos participantes' if mentor else 'Minhas sessões' }}</h2><p>{{ sessions|length }} {{ 'sessão registrada' if sessions|length == 1 else 'sessões registradas' }}</p></div>
+  {% if sessions %}<div class="remote-session-list">{% for item in sessions %}
+    <article class="card remote-session-row">
+      <div><h3>{{ item.user_name if mentor else item.machine_name }}</h3><p>{{ item.machine_name if mentor else 'Seu histórico de investigação' }} · Sessão {{ item.id }}</p></div>
+      <span class="remote-status" data-state="{{ item.status }}">{{ states.get(item.status, item.status) }}</span>
+      <a class="button secondary" href="/remote-labs/{{ item.id }}">{{ 'Acompanhar' if item.status == 'active' else 'Ver histórico' }}<span class="sr-only"> sessão {{ item.id }}</span></a>
+    </article>
+  {% endfor %}</div>{% else %}<div class="card remote-empty"><h3>{{ 'Nenhuma sessão iniciada' if mentor else 'Sua primeira investigação começa aqui' }}</h3><p>{{ 'As sessões aparecerão aqui quando os participantes iniciarem um laboratório.' if mentor else 'Quando houver um ambiente disponível, inicie o laboratório acima. O histórico ficará disponível nesta página.' }}</p></div>{% endif %}
+</section>
+{% if mentor %}<section class="card"><h2>Máquinas conectadas</h2><p class="field-help">A disponibilidade depende do contato recente do agente. Cada ambiente atende uma sessão e precisa ser preparado novamente para outro participante.</p>
+  {% if machines %}<ul class="remote-machine-list">{% for machine in machines %}<li><strong>{{ machine.name }}</strong><span>{{ 'Disponível' if machine.online and machine.status == 'available' else ('Em uso' if machine.status == 'allocated' else ('Encerrada — preparar novo ambiente' if machine.status == 'retired' else 'Sem conexão recente')) }}</span></li>{% endfor %}</ul>{% else %}<p class="remote-empty">Nenhuma máquina cadastrada. Consulte o plano de operação para cadastrar e conectar o agente em uma máquina Linux isolada.</p>{% endif %}
+</section>{% endif %}
+{% endblock %}

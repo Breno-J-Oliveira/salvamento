@@ -13,6 +13,7 @@ import rubric
 import vacancies
 import challenge_editor
 import corporate
+import remote_labs
 from catalog import seed_catalog
 
 app = Flask(__name__)
@@ -49,6 +50,10 @@ def protect_request():
         abort(400)
     if hostname not in app.config['ALLOWED_HOSTS']:
         abort(400, description='Endereço de acesso não autorizado. Use o endereço local da aplicação.')
+    # Machine credentials authenticate this single endpoint independently of browser cookies.
+    if request.endpoint == 'remote_agent_poll':
+        remote_labs.authenticate_agent(db)
+        return
     if session.get("user_id"):
         user = db().execute("SELECT id,name,role FROM users WHERE id=?", (session["user_id"],)).fetchone()
         if not user:
@@ -188,6 +193,7 @@ def init_db():
                  "", "", "", "cti-lab/incident-01", 5000, "Incidente em andamento"))
     challenge_editor.migrate(con)
     corporate.migrate(con)
+    remote_labs.migrate(con)
     con.commit(); con.close()
 
 def db():
@@ -656,6 +662,7 @@ def toggle_job(jid):
 
 challenge_editor.register_routes(app, db, mentor_required)
 corporate.register_routes(app, db, login_required, mentor_required)
+remote_labs.register_routes(app, db, login_required, mentor_required)
 learning.register_routes(app, db, login_required)
 recruitment.register_routes(app, db, login_required, mentor_required)
 selection.register_routes(app, db, login_required)

@@ -1,3 +1,35 @@
+# Mudança de direção — laboratórios remotos acompanhados, sem Docker
+
+Atualização de 12/11/2026. Esta seção prevalece sobre as anteriores. O usuário autorizou planejar e começar a substituição dos ambientes Docker, com execução real online e acompanhamento do avaliador. Escolheu usar um computador/servidor do SENAI com Windows e configuração semelhante à atual. A integração de virtualizador planejada será VirtualBox nesse host, com VM Linux/systemd para o agente. Nesta máquina há 15,75 GB de RAM e 5,23 GB livres, sem VirtualBox instalado. A versão de trabalho continua em `.runtime/salvamento-atual` da pasta original.
+
+## Objetivo e arquitetura decididos
+
+O Purple Talent continua Flask/SQLite/HTML. O navegador envia comandos para uma fila relacional. Um agente instalado DENTRO de uma VM Linux descartável no servidor do SENAI consulta a fila por HTTPS, executa como usuário sem privilégios e devolve a saída. O mentor acompanha comandos, estados e resultados pelo site e escreve anotações privadas. A primeira versão é terminal por comando, com retorno após término e atualização por consulta a cada três segundos. Cada comando abre um shell novo. Área de trabalho remota, PTY interativo e gravação de vídeo são etapas posteriores.
+
+Há duas fronteiras distintas. O servidor da plataforma guarda contas e histórico. O servidor do SENAI hospeda VMs exclusivas por sessão. Comandos dos participantes jamais são executados no computador Windows que serve o Flask. O agente tem credencial própria em arquivo protegido fora do workspace, e executa comandos sob outra identidade. O avaliador observa o terminal e pode encerrar uma sessão. Isso cobre as ações feitas por essa interface. Outros canais de acesso à VM precisam ser bloqueados ou auditados separadamente.
+
+## Plano executável e ordem
+
+1. **Sessões e acompanhamento** — `remote_labs.py`, templates e assets dedicados. Alocação transacional de uma máquina já preparada e conectada, uma sessão por participante, duração de 30 minutos, fila sem reexecução automática, histórico, consentimento explícito, notas só para mentores e negativa de acesso entre participantes. Ao terminar, retirar a máquina do conjunto até recriação.
+2. **Agente real e preparação** — `scripts/lab_agent.py` e `scripts/register_lab_machine.py`. Credencial aleatória individual com hash no banco e segredo em arquivo novo. Linux isolado, usuário executor sem sudo, HTTPS, tempo/saída/recursos limitados, autenticação bearer independente dos cookies. Registrar heartbeat, falhas e término. Verificar comandos reais numa VM Linux antes de considerar esta etapa homologada.
+3. **Servidor SENAI e criação automática** — Windows confirmado pelo usuário. Verificar CPU com virtualização, RAM/disco disponíveis no equipamento institucional, instalação VirtualBox, permissão da instituição e caminho de rede. Preparar uma imagem Linux limpa com agente e caso fictício. Implementar integração com VBoxManage no host Windows, após preparar e testar o template Linux. Automatizar criação a partir de modelo, credencial única, início, confirmação do agente, desligamento e exclusão. Essa integração ainda depende do inventário do servidor. A primeira fatia aloca VMs previamente preparadas, sem alegar que já cria VMs.
+4. **Acesso pela internet** — hospedar aplicação com servidor de produção, domínio/HTTPS e proxy confiável. O agente inicia a conexão de saída, sem expor SSH ou API do virtualizador ao participante. Configurar hosts/origens, firewall entre VMs, rede institucional e plataforma. Se o SENAI não permitir acesso externo, validar primeiro na rede local e definir túnel/VPN institucional aprovado.
+5. **Validação operacional** — testar dois participantes em VMs distintas, observador somente leitura, perda de conexão, expiração, retomada sem repetir comando, limites de recursos e descarte real. Só então ensaiar a apresentação do dia 19. Registrar evidência e limitações.
+
+## Critérios de aceite da primeira fatia
+
+- O participante vê disponibilidade verdadeira e inicia uma sessão somente com agente recente e consentimento. Sem executor, a interface explica a indisponibilidade.
+- Um comando pertence à própria sessão. Mentor acompanha sem poder executar no lugar do participante. Notas internas ficam fora do HTML e JSON do participante.
+- Um comando entregue ao agente não é reenviado automaticamente se a resposta se perder. Resultados duplicados não reescrevem o histórico.
+- Encerramento/expiração bloqueiam novos comandos e aposentam a máquina. Desligamento/exclusão reais da VM precisam da integração do virtualizador e permanecem pendentes.
+- Testes usam bases descartáveis. Backups precedem migração dos bancos locais. Segredos e saídas privadas ficam fora do Git.
+
+## Acompanhamento da implementação
+
+Primeira fatia implementada. Suíte completa executada: 213 testes Python, 209 aprovados e 4 ignorados (2 Docker real e 2 Linux/systemd real indisponíveis). Sete cenários Chrome integrados passaram com agente sintético de QA, incluindo atualização do observador sem recarregar, notas privadas, acesso negado entre participantes, encerramento e layouts390/768/1440. Revisão independente do agente encontrou grupo primário privilegiado e fallback de encerramento incompleto; ambos corrigidos com regressão. Saída e comandos usam texto escapado no HTML/JS. Execução Linux real, criação/exclusão VirtualBox e acesso externo continuam pendentes. Backups verificados dos bancos local/demo em output/qa/before-remote-labs*.db precederam migração local. Runbook com preparação, comandos e limites em `docs/LABORATORIOS-REMOTOS.md`. Verificação final executada por `python tests/run_report.py` e `node tests/browser_remote_labs.cjs`, além de compilação Python, sintaxe JS, renderização Jinja e diff check. O agente exige systemd254+ para preservar variáveis de shell sem expansão antecipada. Publicação desta etapa no repositório salvamento autorizada pelo usuário. Consulte o histórico Git para o commit correspondente. Sem máquina SENAI, domínio e rede configurados nesta sessão, não declarar homologação online, criação automática de VMs ou execução Linux real. Docker legado permanece acessível para compatibilidade enquanto a nova entrada de laboratórios é integrada. Nenhuma contratação, instalação em servidor institucional ou publicação de serviço público está implícita no desenvolvimento local.
+
+---
+
 # Atualização — desafios e avaliações corporativas internas
 
 Esta seção prevalece sobre os registros anteriores. O usuário solicitou novas funcionalidades, retirada do aspecto de IA das imagens, teste de resposta sem Docker e publicação final no salvamento.
