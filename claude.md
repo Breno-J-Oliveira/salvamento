@@ -1,5 +1,21 @@
 # Purple Talent — contexto e continuidade do projeto
 
+## Leia primeiro estado consolidado em 12 de novembro de 2026
+
+Esta seção e as duas entregas imediatamente abaixo representam o estado atual. Se houver conflito com registros antigos deste arquivo, use esta consolidação e os relatórios vinculados; o restante é histórico.
+
+- **Publicação confirmada antes desta atualização documental:** main de Breno-J-Oliveira/salvamento, commit f0c515d4608586182bf6837943abe7b94e68e4a6. A versão anterior de apresentação está em 9f44235e393814763ff5d0f572675537a0a52482. Os commits locais têm SHAs diferentes porque a publicação foi feita pela integração GitHub; o conteúdo enviado foi conferido por hash de cada arquivo.
+- **Execução:** Windows PowerShell, .venv/Scripts/python.exe app.py, endereço http://127.0.0.1:5000. Para Docker, abrir Desktop e aguardar o engine Linux. O processo local foi reiniciado após a evolução; sua disponibilidade futura deve ser verificada, não presumida.
+- **Novas rotas:** /opportunities aceita q, side e modality combinados; /my-applications aceita status; /my-applications/<id>/receipt exige participante titular e oferece extrato imprimível. O extrato não inclui gabarito nem notas internas. A lista de laboratórios também exige login e nunca expõe instâncias de outro usuário.
+- **Arquivos da evolução:** recruitment.py, app.py, static/app.js, templates/admin_job_form.html, templates/opportunities.html, templates/my_applications.html, templates/application_receipt.html e templates/laboratory.html. Os estilos editor-enhancements.css, candidate-enhancements.css e workspace-enhancements.css são incluídos em templates/base.html.
+- **Verificação registrada da evolução:** 18 cenários Chrome integrados, 7 testes novos da jornada e 3 dos laboratórios aprovados. QA independente conferiu 8 telas móveis/desktop e impressão, incluindo título longo e URL extensa. O editor foi verificado com duplicação, reordenação, desfazer, identificadores únicos, limite de 15 perguntas, prévia, contadores e aviso ao sair. Não alegar que a suíte integral foi reexecutada nesta evolução.
+- **Verificação da apresentação anterior:** os 148 casos Python únicos foram verificados, incluindo os casos reais Docker executados separadamente, e 25 cenários de navegador passaram naquela etapa. Consulte os relatórios para distinguir datas, cobertura e resultados; não somar testes repetidos como casos novos.
+- **Preservação:** não excluir lab.db, .session-key, candidaturas, snapshots ou backups; não executar testes no banco da equipe. Fixtures e evidências sintéticas ficam no D: ou em output/qa ignorado pelo Git. O disco C: voltou a ficar com pouco espaço durante a última etapa; verificar espaço antes de rebuilds ou testes extensos.
+- **Próximas mudanças:** priorizar problemas comprovados e os limites empresariais registrados, sem inventar validação humana, parceria formal ou uso público. Há um backlog de 30 propostas; a lista não equivale a 30 funcionalidades concluídas. Publicação autorizada somente no salvamento; não enviar estas evoluções para purple-talent.
+
+Referências atuais: [23 melhorias](docs/EVOLUCAO-23-MELHORIAS.md), [entrega de apresentação](docs/ENTREGA-APRESENTACAO.md), [roteiro](docs/APRESENTACAO.md), [segurança](docs/SEGURANCA-FINAL.md) e [avaliação](docs/AVALIACAO-FINAL.md).
+
+
 ## Evolução de usabilidade após a entrega de apresentação
 
 Foram integradas 23 melhorias, detalhadas em docs/EVOLUCAO-23-MELHORIAS.md: editor com duplicação, reordenação, desfazer, prévia, contadores e aviso ao sair; filtros de vagas/candidaturas, datas, histórico, progresso, prazo e extrato privado imprimível; laboratórios com descrições corretas, estado individual, quota, validade, ações, conclusão e busca. Novos estilos locais são incluídos em templates/base.html. Nenhuma dependência nova foi adicionada. O extrato exige papel participante e ownership, preserva form_version e não lê notes ou answer_keys. O backend dos laboratórios não consulta Docker para construir a lista: apresenta somente registros próprios válidos e explica que a disponibilidade é confirmada no desafio.
@@ -25,7 +41,7 @@ A versão permanece local; uso público precisa de HTTPS/hospedagem, contas de e
 
 ## Continuidade local de 07/11/2026
 
-Esta é a continuidade mais recente; o estado de06/11 abaixo permanece como histórico da base recebida.
+Registro histórico da continuidade de 07/11. A consolidação no início deste arquivo prevalece.
 
 A nova versão de salvamento (base13f9c2c) foi baixada em codex/continue-salvamento, preservando o checkout anterior em codex/before-salvamento-update. Nesta continuação foram integradas revisão humana por competência (rubric.py) e busca/filtros/paginação das candidaturas da mentoria. As notas são relacionais e internas, com justificativa, autor/data e histórico de revisões; não alteram pontos de treino, etapa ou feedback compartilhado. Apenas avaliações seletivas já enviadas podem ser revisadas. Concorrência retorna409 sem sobrescrever revisões anteriores.
 
@@ -35,7 +51,7 @@ O usuário pediu testes reais Docker. As primeiras tentativas tiveram timeout/er
 
 ## Leia primeiro — estado atual da nova fase (06/11/2026)
 
-Esta seção prevalece sobre pendências e restrições históricas descritas adiante. O usuário autorizou implementar a nova fase, exigiu formulários no banco (não JSON) e pediu atualizar este arquivo e publicar o conjunto em **Breno-J-Oliveira/salvamento**. Não há autorização nova para enviar estas evoluções a purple-talent. Bancos, chaves e evidências privadas continuam fora do GitHub.
+Registro histórico de 06/11; a consolidação no início deste arquivo prevalece. O usuário autorizou implementar a nova fase, exigiu formulários no banco (não JSON) e pediu atualizar este arquivo e publicar o conjunto em **Breno-J-Oliveira/salvamento**. Não há autorização nova para enviar estas evoluções a purple-talent. Bancos, chaves e evidências privadas continuam fora do GitHub.
 
 ### O que funciona agora
 
