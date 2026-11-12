@@ -1,3 +1,16 @@
+# Atualização — desafios e avaliações corporativas internas
+
+Esta seção prevalece sobre os registros anteriores. O usuário solicitou novas funcionalidades, retirada do aspecto de IA das imagens, teste de resposta sem Docker e publicação final no salvamento.
+
+- Editor de desafios em `/admin/challenges`: desafios textuais com rascunho/publicação/pausa, resposta em hash não refletida, conflito409 e congelamento de pontos/lado/resposta após tentativas. Laboratórios Docker permanecem configuração controlada, somente leitura no editor. Root filtra estados e revalida no envio transacional.
+- `corporate.py`: definições/perguntas/atribuições/snapshots/revisões relacionais; mentor prepara três perguntas, pode usar exemplos SOC/acesso e atribui a conta participante existente. `/my-assessments` mostra somente atribuições próprias, rascunho e envio definitivo. Feedback compartilhado separado de notas e rubrica internas. Sem pontos CTF, e-mail, novo papel ou isolamento multiempresa.
+- `/admin/laboratory-status` faz consulta explícita somente leitura. CLI ausente foi testada de verdade neste host: diagnóstico e início falho respondem sem criar instância. Isso NÃO comprova execução real Docker; dois testes reais continuam ignorados por indisponibilidade.
+- Landing e autenticação usam elementos HTML/CSS e exemplos sintéticos no lugar das artes geradas. Capturas reais do produto foram preservadas; arquivos de artes antigos não são mais usados nessas telas.
+- Verificação desta entrega: 187 testes Python executados, 185 aprovados e 2 reais Docker ignorados. 10 novos cenários Chrome e 18 de regressão de recrutamento aprovados; layouts 390/768/1440 conferidos. Revisão independente encontrou revisão numérica gigante causando500; corrigida com regressão. Backups dos bancos local/demo antes da migração em output/qa, sem sobrescrever dados.
+- Novos detalhes: docs/ENTREGA-SISTEMAS-INTERNOS.md. Publicação autorizada somente em Breno-J-Oliveira/salvamento; não publicar em purple-talent. Bancos, chaves, output e evidências continuam fora do Git.
+
+---
+
 # Continuidade local — integração visual para 19/11/2026
 
 Esta atualização local de 12/11 prevalece sobre o estado anterior abaixo. Base: salvamento 9ee1201, com publicação desta integração autorizada pelo usuário nesta conversa. Consulte o histórico Git para identificar o commit publicado. A versão em execução nesta máquina está em `.runtime/salvamento-atual` da pasta original; a raiz original mantém a cópia antiga e seus dados.

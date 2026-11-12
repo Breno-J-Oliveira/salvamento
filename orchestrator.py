@@ -23,6 +23,18 @@ class DockerError(Exception):
     pass
 
 
+def availability():
+    """Read-only engine probe; never build, start or clean containers."""
+    import shutil
+    if not shutil.which('docker'):
+        return dict(available=False, code='missing_cli', message='Docker não instalado ou fora do PATH. As avaliações textuais continuam disponíveis; laboratórios executáveis precisam do Docker Desktop.')
+    try:
+        _docker('info', '--format', '{{.ServerVersion}}', timeout=QUERY_TIMEOUT)
+    except DockerError:
+        return dict(available=False, code='engine_unavailable', message='A CLI existe, mas o engine não respondeu. Abra o Docker Desktop e tente novamente. Nenhum ambiente foi iniciado.')
+    return dict(available=True, code='ready', message='O engine Docker respondeu. Isso confirma disponibilidade do engine, não a execução ou o isolamento de um laboratório específico.')
+
+
 def _docker(*args, timeout=60, env=None):
     try:
         result = subprocess.run(["docker", *args], capture_output=True, text=True,

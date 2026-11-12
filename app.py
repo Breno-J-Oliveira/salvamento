@@ -11,6 +11,8 @@ import recruitment
 import selection
 import rubric
 import vacancies
+import challenge_editor
+import corporate
 from catalog import seed_catalog
 
 app = Flask(__name__)
@@ -184,6 +186,8 @@ def init_db():
                 ("Incidente em andamento", "Resposta a incidentes", "Blue Team", 300,
                  "Investigue os registros disponíveis no servidor simulado. Identifique o endereço IP associado à atividade maliciosa e envie CTF{ip}.",
                  "", "", "", "cti-lab/incident-01", 5000, "Incidente em andamento"))
+    challenge_editor.migrate(con)
+    corporate.migrate(con)
     con.commit(); con.close()
 
 def db():
@@ -220,9 +224,9 @@ def mentor_required(f):
 def index():
     d = db()
     own = next((r for r in stats() if r['id'] == session.get('user_id')), {})
-    summary = dict(total=d.execute('SELECT COUNT(*) FROM challenges').fetchone()[0],
-                   labs=d.execute('SELECT COUNT(*) FROM challenges WHERE image IS NOT NULL').fetchone()[0],
-                   points=d.execute('SELECT COALESCE(SUM(points),0) FROM challenges').fetchone()[0],
+    summary = dict(total=d.execute("SELECT COUNT(*) FROM challenges WHERE editorial_status='published'").fetchone()[0],
+                   labs=d.execute("SELECT COUNT(*) FROM challenges WHERE image IS NOT NULL AND editorial_status='published'").fetchone()[0],
+                   points=d.execute("SELECT COALESCE(SUM(points),0) FROM challenges WHERE editorial_status='published'").fetchone()[0],
                    own_points=own.get('points',0))
     # A mesma regra editorial da inscrição também protege os destaques públicos.
     now = int(time.time())
@@ -237,13 +241,20 @@ def index():
 @login_required
 def laboratory():
     d=db(); now=int(time.time()); uid=session.get('user_id')
-    items=[dict(r) for r in d.execute("SELECT * FROM challenges WHERE image IS NOT NULL ORDER BY CASE WHEN image='cti-lab/incident-01' THEN 0 ELSE 1 END,id")]
+    items=[dict(r) for r in d.execute("SELECT * FROM challenges WHERE image IS NOT NULL AND editorial_status='published' ORDER BY CASE WHEN image='cti-lab/incident-01' THEN 0 ELSE 1 END,id")]
     instances={};solved=set();own_instances=[]
     if uid:
         own_instances=d.execute('SELECT * FROM instances WHERE user_id=? AND active=1 AND expires_at>=? ORDER BY started_at',(uid,now)).fetchall()
         instances={r['challenge_id']:dict(r) for r in own_instances}
         solved={r[0] for r in d.execute('SELECT DISTINCT challenge_id FROM attempts WHERE user_id=? AND correct=1',(uid,))}
     return render_template('laboratory.html',items=items,instances=instances,solved=solved,now=now,max_per_user=MAX_PER_USER,active_count=len(own_instances))
+
+
+@app.route('/admin/laboratory-status', methods=['GET', 'POST'])
+@mentor_required
+def laboratory_status():
+    diagnosis = orch.availability() if request.method == 'POST' else None
+    return render_template('laboratory_status.html', diagnosis=diagnosis)
 
 
 @app.route('/blog')
@@ -299,7 +310,7 @@ def logout():
 def challenges():
     d = db()
     solved = {r[0] for r in d.execute("SELECT challenge_id FROM attempts WHERE user_id=? AND correct=1", (session["user_id"],))}
-    return render_template("challenges.html", items=d.execute("SELECT * FROM challenges ORDER BY id").fetchall(), solved=solved)
+    return render_template("challenges.html", items=d.execute("SELECT * FROM challenges WHERE editorial_status='published' ORDER BY id").fetchall(), solved=solved)
 
 TTL = 60 * 60       # duração de cada ambiente: 60 minutos
 MAX_ACTIVE = 10     # máximo de containers ao mesmo tempo
@@ -350,7 +361,7 @@ def stop_instance(d, row):
 def challenge(cid):
     d, uid = db(), session["user_id"]
     c = d.execute("SELECT * FROM challenges WHERE id=?", (cid,)).fetchone()
-    if not c:
+    if not c or (c["editorial_status"] != "published" and (session.get("role") != "mentor" or request.method == "POST")):
         abort(404)
     d.execute("INSERT OR IGNORE INTO starts VALUES(?,?,?)", (uid, cid, int(time.time())))
     d.commit()
@@ -359,6 +370,10 @@ def challenge(cid):
         return redirect(f"/challenge/{cid}")
     if request.method == "POST" and not solved:
         d.execute("BEGIN IMMEDIATE")
+        c = d.execute("SELECT * FROM challenges WHERE id=?", (cid,)).fetchone()
+        if not c or c["editorial_status"] != "published":
+            d.rollback()
+            abort(404)
         if d.execute("SELECT 1 FROM attempts WHERE user_id=? AND challenge_id=? AND correct=1", (uid,cid)).fetchone():
             d.rollback()
             return redirect(f"/challenge/{cid}")
@@ -410,7 +425,7 @@ def start_env(cid):
 def start_env_locked(cid):
     d, uid = db(), session["user_id"]
     c = d.execute("SELECT * FROM challenges WHERE id=?", (cid,)).fetchone()
-    if not c or not c["image"]:
+    if not c or not c["image"] or c["editorial_status"] != "published":
         abort(404)
     reap_expired()
     back = redirect(f"/challenge/{cid}")
@@ -639,6 +654,8 @@ def toggle_job(jid):
     return redirect('/jobs')
 
 
+challenge_editor.register_routes(app, db, mentor_required)
+corporate.register_routes(app, db, login_required, mentor_required)
 learning.register_routes(app, db, login_required)
 recruitment.register_routes(app, db, login_required, mentor_required)
 selection.register_routes(app, db, login_required)

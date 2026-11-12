@@ -1,5 +1,7 @@
 # Imagens e capturas da apresentação
 
+> Histórico: na entrega dos sistemas internos, as artes geradas abaixo deixaram de ser usadas na landing e autenticação. Foram substituídas por elementos HTML/CSS. As capturas reais permanecem. Consulte ENTREGA-SISTEMAS-INTERNOS.md.
+
 Produzidas em 12/11/2026. As duas ilustrações foram criadas com a ferramenta integrada image_gen; os arquivos WebP finais são recursos locais da aplicação. Não dependem de CDN, API ou serviço de geração em tempo de execução. Os SVGs originais foram preservados. Os ícones novos são vetores locais determinísticos em static/icons.svg.
 
 ## Arquivos integrados

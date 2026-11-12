@@ -19,7 +19,7 @@ def register_routes(app, db, login_required):
         areas=db().execute('''SELECT c.category,COUNT(*) total,
             SUM(CASE WHEN EXISTS(SELECT 1 FROM attempts a WHERE a.challenge_id=c.id
             AND a.user_id=? AND a.correct=1) THEN 1 ELSE 0 END) solved
-            FROM challenges c GROUP BY c.category ORDER BY c.category''',(uid,)).fetchall()
+            FROM challenges c WHERE c.editorial_status!='draft' GROUP BY c.category ORDER BY c.category''',(uid,)).fetchall()
         solved=db().execute('''SELECT c.id,c.title,w.content FROM challenges c
             LEFT JOIN writeups w ON w.challenge_id=c.id AND w.user_id=?
             WHERE EXISTS(SELECT 1 FROM attempts a WHERE a.challenge_id=c.id AND a.user_id=? AND a.correct=1)

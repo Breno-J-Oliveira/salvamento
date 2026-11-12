@@ -30,7 +30,7 @@
 <button class="full">Iniciar ambiente</button>
 </form>
 <p class="field-help">A primeira inicialização pode levar alguns minutos. O ambiente expira automaticamente.</p>{% endif %}</section>{% endif %}<section class="card">
-<h2>Submeter flag</h2>{% if solved %}<p class="ok">Desafio concluído. Seus pontos já foram registrados.</p>{% else %}<p class="muted">Encontrou a bandeira? Envie o código completo para validar sua descoberta.</p>
+<h2>Submeter flag</h2>{% if c.editorial_status != 'published' %}<p class="notice">Prévia da equipe. Este desafio não recebe tentativas enquanto estiver em rascunho ou pausado.</p>{% elif solved %}<p class="ok">Desafio concluído. Seus pontos já foram registrados.</p>{% else %}<p class="muted">Encontrou a bandeira? Envie o código completo para validar sua descoberta.</p>
 <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <label>Flag<input name="flag" placeholder="CTF{...}" maxlength="512" required autocomplete="off" spellcheck="false" class="mono">
