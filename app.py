@@ -2,6 +2,7 @@ import base64, hashlib, os, secrets, sqlite3, threading, time, re
 from datetime import timedelta
 from pathlib import Path
 from functools import wraps
+from urllib.parse import urlsplit
 from flask import Flask, g, render_template, request, redirect, session, flash, abort
 from werkzeug.security import generate_password_hash, check_password_hash
 import orchestrator as orch
@@ -23,6 +24,7 @@ if not os.environ.get("SECRET_KEY") and not key_path.exists():
 app.secret_key = os.environ.get("SECRET_KEY") or key_path.read_text().strip()
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
                   MAX_CONTENT_LENGTH=65536, PERMANENT_SESSION_LIFETIME=timedelta(hours=8))
+app.config['ALLOWED_HOSTS'] = ('127.0.0.1', 'localhost', '::1')
 ENV_LOCK = threading.RLock()
 RATE_LOCK = threading.Lock()
 RATE_BUCKETS = {}
@@ -38,6 +40,13 @@ app.jinja_env.globals["csrf_token"] = csrf_token
 
 @app.before_request
 def protect_request():
+    # Local deployment must not accept attacker-controlled DNS names.
+    try:
+        hostname = urlsplit(request.host_url).hostname
+    except ValueError:
+        abort(400)
+    if hostname not in app.config['ALLOWED_HOSTS']:
+        abort(400, description='Endereço de acesso não autorizado. Use o endereço local da aplicação.')
     if session.get("user_id"):
         user = db().execute("SELECT id,name,role FROM users WHERE id=?", (session["user_id"],)).fetchone()
         if not user:
@@ -45,6 +54,11 @@ def protect_request():
         else:
             session.update(name=user["name"], role=user["role"])
     if request.method == "POST":
+        origin = request.headers.get('Origin')
+        if origin and origin != request.host_url.rstrip('/'):
+            abort(403, description='Origem da solicitação não autorizada.')
+        if request.headers.get('Sec-Fetch-Site') == 'cross-site':
+            abort(403, description='Origem da solicitação não autorizada.')
         if not secrets.compare_digest(session.get("csrf", "").encode("utf-8"), request.form.get("csrf_token", "").encode("utf-8")) or not session.get("csrf"):
             abort(400, description="A sessão do formulário expirou. Atualize a página e tente novamente.")
         auth_request = request.path in ("/login", "/register")
@@ -81,6 +95,8 @@ def security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "same-origin"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
     response.headers["Cache-Control"] = "no-store" if request.endpoint != "static" else "public, max-age=3600"
     return response
 
@@ -339,6 +355,12 @@ def challenge(cid):
             flash("Informe uma flag com até 512 caracteres.")
             return redirect(f"/challenge/{cid}")
         if c["image"]:   # desafio com ambiente: resposta vinculada à instância
+            if c['image'] == 'cti-lab/incident-01':
+                failures = d.execute('SELECT COUNT(*) FROM attempts WHERE user_id=? AND challenge_id=? AND correct=0 AND created_at>=?',
+                                     (uid, cid, int(time.time()) - 86400)).fetchone()[0]
+                if failures >= 12:
+                    d.rollback()
+                    abort(429, description='Limite de 12 respostas incorretas em 24 horas atingido neste cenário. Aguarde a renovação do período.')
             hashes = [r[0] for r in d.execute("SELECT flag_hash FROM instances WHERE user_id=? AND challenge_id=? AND active=1 AND expires_at>=?", (uid, cid, int(time.time())))]
             if not hashes:
                 d.rollback()

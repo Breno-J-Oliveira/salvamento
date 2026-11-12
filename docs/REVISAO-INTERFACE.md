@@ -1,3 +1,5 @@
+> Registro histórico. Para o estado e os testes da versão de apresentação, consulte [ENTREGA-APRESENTACAO.md](ENTREGA-APRESENTACAO.md).
+
 # Revisão da interface e recuperação de formulários
 
 Data: 6 de novembro de 2026. Escopo: templates e recursos de interface existentes, sem mudança de identidade visual ou novas dependências.

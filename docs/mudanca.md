@@ -1,3 +1,16 @@
+# Atualização para apresentação
+
+Consulte ENTREGA-APRESENTACAO.md para as evidências desta versão; o conteúdo abaixo registra etapas anteriores.
+
+- Landing ampliada com jornada, FAQ, CTAs e ilustração própria local.
+- Editor explica formatos de texto, bolinhas, caixas, número e URL; gabaritos ficam restritos à equipe e versionados.
+- Novos dossiês SOC/AppSec apresentam artefatos, sinais legítimos e suspeitos; snapshots existentes preservados.
+- Console Docker final inclui mudanças e conexões, além de acessos/eventos/processos. Dicas removidas da interface.
+- Limite persistente de erros no cenário final, origem de POST, hosts locais, CSP e permissões do navegador.
+- Atualização para Flask 3.1.3 após aviso de segurança e consulta das dependências instaladas.
+- Backup e restauração SQLite para novos destinos com integridade verificada e testes WAL.
+- Roteiro operacional e de apresentação em APRESENTACAO.md; continuidade atualizada em claude.md.
+
 # Mudanças da integração Purple Talent
 
 Data de consolidação: **5 de novembro de 2026**.

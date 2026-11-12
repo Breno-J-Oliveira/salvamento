@@ -22,11 +22,13 @@ PAGES = {
         ('14:01:12', '203.0.113.18 | GET /health | 200 | req-a01'),
         ('14:03:04', f'{source_ip} | POST /session | 401 | req-b11'),
         ('14:03:19', f'{source_ip} | POST /session | 401 | req-b12'),
+        ('14:03:41', '198.51.100.44 | GET /wp-login.php | 404 | req-s01'),
         ('14:04:02', '203.0.113.33 | GET /dashboard | 200 | req-c01'),
         ('14:05:17', f'{source_ip} | POST /session | 200 | req-b13'),
         ('14:06:09', f'{source_ip} | GET /api/reports/export | 200 | req-b14'),
         ('14:06:12', '203.0.113.18 | GET /health | 200 | req-a02'),
         ('14:08:33', '203.0.113.33 | GET /reports | 200 | req-c02'),
+        ('14:09:00', '203.0.113.18 | POST /backup/start | 202 | req-a03'),
         ('14:10:20', f'{source_ip} | GET /api/reports/export | 200 | req-b15'),
     ]),
     'events': ('Eventos', 'Eventos do sistema', [
@@ -36,15 +38,31 @@ PAGES = {
         ('14:05:17', 'Sessão criada | conta=svc-report | req-b13'),
         ('14:06:09', 'Exportação solicitada | conta=svc-report | req-b14'),
         ('14:06:10', 'Leitura de registros | coleção=clientes | volume=5000 | req-b14'),
+        ('14:09:00', 'Backup solicitado | conta=svc-backup | job=b-19 | req-a03'),
         ('14:10:20', 'Exportação solicitada | conta=svc-report | req-b15'),
         ('14:10:21', 'Leitura de registros | coleção=clientes | volume=5000 | req-b15'),
         ('14:12:00', 'Verificação de integridade concluída | resultado=ok'),
+        ('14:12:30', 'Backup concluído | job=b-19 | checksum=ok'),
     ]),
     'processes': ('Processos', 'Processos observados', [
         ('web-gateway', 'pid=172 | usuário=web | estado=ativo | iniciado=14:00:00'),
         ('report-worker', 'pid=184 | usuário=reports | estado=ativo | iniciado=14:00:01'),
         ('integrity-check', 'pid=215 | usuário=monitor | estado=concluído | iniciado=14:11:59'),
         ('audit-agent', 'pid=167 | usuário=monitor | estado=ativo | iniciado=13:58:01'),
+        ('backup-worker', 'pid=201 | usuário=backup | estado=concluído | iniciado=14:09:00 | job=b-19'),
+    ]),
+    'changes': ('Mudanças', 'Registro de operação', [
+        ('CHG-104', 'Backup aprovado | janela=14:08–14:15 | conta=svc-backup | job=b-19'),
+        ('CHG-105', 'Rotação de certificados | janela=18:00–18:30 | estado=agendada'),
+        ('Inventário', 'svc-report | origem habitual=198.51.100.10 | janela habitual=18:00–19:00'),
+        ('Inventário', '203.0.113.18 | monitor de disponibilidade e backup'),
+        ('Inventário', '203.0.113.33 | estação de operação de relatórios'),
+    ]),
+    'network': ('Conexões', 'Transferências observadas', [
+        ('14:06:10', f'web-gateway -> {source_ip} | bytes=8400000 | req-b14'),
+        ('14:09:05', 'backup-worker -> 203.0.113.18 | bytes=32000000 | job=b-19'),
+        ('14:10:21', f'web-gateway -> {source_ip} | bytes=8400000 | req-b15'),
+        ('14:11:30', 'web-gateway -> 203.0.113.33 | bytes=12000 | req-c02'),
     ]),
 }
 
@@ -58,7 +76,7 @@ h1{font-size:clamp(1.7rem,4vw,2.4rem);margin:0 0 8px}p{color:#c9bed7}.panel{marg
 </style></head><body><header><div><span class="brand">ATLAS MONITOR</span><small>Console de observação · atlas-web-01</small>
 <nav aria-label="Seções do servidor">{% for key, page in pages.items() %}<a href="{{ '/' if key == 'overview' else '/' ~ key }}" {% if key == current %}aria-current="page"{% endif %}>{{ page[0] }}</a>{% endfor %}</nav></div></header>
 <main><h1>{{ title }}</h1><p>Captura de um ambiente fictício. Horários exibidos em UTC.</p>
-<section class="panel"><h2>{{ heading }}</h2><div class="table-wrap" role="region" aria-label="{{ heading }}" tabindex="0"><table><thead><tr><th scope="col">{{ 'Indicador' if current == 'overview' else ('Processo' if current == 'processes' else 'Horário') }}</th><th scope="col">Registro</th></tr></thead><tbody>{% for label, value in rows %}<tr><td>{{ label }}</td><td>{{ value }}</td></tr>{% endfor %}</tbody></table></div></section></main><footer>Ambiente de treinamento isolado · dados fictícios</footer></body></html>"""
+<section class="panel"><h2>{{ heading }}</h2><div class="table-wrap" role="region" aria-label="{{ heading }}" tabindex="0"><table><thead><tr><th scope="col">{{ 'Indicador' if current == 'overview' else ('Processo' if current == 'processes' else ('Referência' if current == 'changes' else 'Horário')) }}</th><th scope="col">Registro</th></tr></thead><tbody>{% for label, value in rows %}<tr><td>{{ label }}</td><td>{{ value }}</td></tr>{% endfor %}</tbody></table></div></section></main><footer>Ambiente de treinamento isolado · dados fictícios</footer></body></html>"""
 
 
 @app.after_request

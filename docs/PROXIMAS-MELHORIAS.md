@@ -1,3 +1,5 @@
+> Estado para apresentação: consulte ENTREGA-APRESENTACAO.md. A lista abaixo é backlog; não representa 30 entregas concluídas nem homologação empresarial.
+
 # Próximas melhorias do Purple Talent
 
 Atualizado em 06/11/2026 após a gestão editorial de vagas. O fluxo atual já inclui formulários relacionais por vaga, candidaturas com rascunho/revisão, avaliação textual de 3 etapas, feedback, editor de vagas, prazo e estados. As propostas abaixo ainda não estão concluídas.

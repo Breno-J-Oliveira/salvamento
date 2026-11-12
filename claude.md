@@ -1,5 +1,22 @@
 # Purple Talent — contexto e continuidade do projeto
 
+## Entrega para apresentação em 12 de novembro de 2026
+
+Esta seção prevalece sobre os estados históricos abaixo. O usuário autorizou finalizar a demonstração, melhorar segurança e UX e publicar no repositório **Breno-J-Oliveira/salvamento**. Não publicar em purple-talent. A stack permanece Flask, SQLite, HTML/Jinja, CSS/JS e Docker CLI local.
+
+- Formulários por vaga têm texto curto/longo, escolha única com bolinhas e gabarito opcional privado, múltipla escolha, número e URL. Versões e gabaritos ficam relacionais; a nota objetiva não decide contratação.
+- Candidatos revisam respostas, salvam rascunho e podem desistir nas etapas elegíveis. Há tokens de confirmação, proteção contra conflitos de respostas, perguntas e pareceres, histórico e notas internas separadas do feedback.
+- A landing explica a proposta, os dois públicos, a jornada, perguntas frequentes e usa ilustração SVG local original. A identidade visual foi mantida.
+- Avaliações SOC/AppSec de novas candidaturas receberam dossiês com artefatos e hipóteses concorrentes, sem resposta sugerida. Avaliações iniciadas mantêm seus snapshots. Catálogo público não é prova secreta e os botões de dicas foram removidos da interface.
+- O laboratório final é captura sintética isolada em Docker, com acessos, eventos, processos, mudanças e conexões. Não é ataque real em andamento. Resposta varia por instância; há limite persistente de 12 erros/24h, independente do reinício de containers. Não é garantia antifraude.
+- Segurança local: hosts permitidos, origem de POST, CSRF, CSP, permissões de navegador, cookies e autorização. Flask atualizado de 3.0.3 para 3.1.3 após consulta OSV. Não alterar credenciais ou remover banco/chave.
+- scripts/backup_database.py permite backup e restauração apenas para destino novo, com verificação de integridade. Nunca usar uma base real para testes destrutivos.
+
+Resultados e limites desta versão: docs/ENTREGA-APRESENTACAO.md. Roteiro: docs/APRESENTACAO.md. Segurança: docs/SEGURANCA-FINAL.md. Avaliação: docs/AVALIACAO-FINAL.md. Evidências com dados sintéticos ficam fora do Git. Resultados históricos não substituem a verificação final registrada nesses documentos.
+
+A versão permanece local; uso público precisa de HTTPS/hospedagem, contas de equipe provisionadas, política de dados, recuperação de acesso, separação de papéis e validação operacional. Não prometer invulnerabilidade ou aceite empresarial.
+
+
 ## Continuidade local de 07/11/2026
 
 Esta é a continuidade mais recente; o estado de06/11 abaixo permanece como histórico da base recebida.

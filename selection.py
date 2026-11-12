@@ -33,15 +33,77 @@ def stored_evidence(connection,aid):
                 responses={str(r[0]):r[1] for r in connection.execute('SELECT position,content FROM selection_responses WHERE application_id=? ORDER BY position',(aid,))},submitted_at=row['submitted_at'])
 
 def scenario(side):
+    # Cada candidatura armazena os briefings que recebeu; alterar esta função
+    # não reescreve as evidências de avaliações já iniciadas.
     if side == 'Red Team':
         return [
-            dict(title='Delimitar e investigar',briefing='Ambiente fictício autorizado: uma API recebe GET /orders/42 com sessão do usuário A e devolve pedido do usuário B. GET /orders/41 devolve pedido do usuário A. Não teste alvos externos. Descreva a hipótese, o escopo e as evidências necessárias para confirmar a falha de autorização.'),
-            dict(title='Explicar o risco',briefing='O pedido contém endereço e itens comprados. O endpoint verifica se há sessão, mas consulta o pedido apenas pelo ID. Relacione o comportamento à causa, explique impacto e descreva um teste negativo sem acessar dados reais.'),
-            dict(title='Corrigir e validar',briefing='Proponha autorização por proprietário e regras para acesso administrativo. Descreva como validar que o dono continua acessando o pedido e outros usuários recebem uma resposta segura. Registre limites e próximos passos.')]
+            dict(title='Investigar o dossiê AppSec', briefing="""DOSSIÊ APPSEC / v2 · ambiente fictício autorizado
+Janela: 10:00–10:15 UTC. Dados de teste; não há alvo externo autorizado.
+
+CONTAS E DADOS
+conta A: perfil cliente, pedido 41, tenant alfa
+conta B: perfil cliente, pedido 42, tenant beta
+conta S: suporte, sem delegação para beta
+
+CAPTURA HTTP
+10:01 req-101 conta=A GET /api/orders/41 -> 200 {owner:A, tenant:alfa, total:120}
+10:02 req-102 conta=A GET /api/orders/42 -> 200 {owner:B, tenant:beta, total:380}
+10:03 req-103 conta=B GET /api/orders/41 -> 404
+10:04 req-104 conta=A GET /api/orders/999 -> 404
+10:05 req-105 conta=S GET /api/orders/42 -> 403
+10:06 req-106 anônimo GET /api/orders/42 -> 401
+
+EVENTOS DA APLICAÇÃO
+req-102 handler=orders.get cache=HIT cache_key=order:42
+req-103 handler=orders.get cache=MISS policy=deny
+req-105 handler=orders.get cache=MISS policy=deny
+
+Documente fatos, hipóteses concorrentes, impacto possível e limites da evidência. Que verificações controladas diferenciariam as hipóteses? Cite os identificadores usados."""),
+            dict(title='Projetar a verificação', briefing="""CONTEXTO ADICIONAL / AppSec v2
+A equipe informa que a falha não foi reproduzida em uma instância recém-iniciada. A captura veio de um único nó. Ainda não há rastreamento do preenchimento do cache nem configuração do gateway.
+
+Entregue uma matriz de testes positivos e negativos com identidades, recursos, estado inicial e resultado esperado. Defina como preservar evidências e evitar exposição de dados. Explique quais conclusões continuam condicionais e quais achados justificam escalonamento."""),
+            dict(title='Entregar parecer técnico', briefing="""PARECER / AppSec v2
+A empresa precisa decidir se mantém o endpoint disponível enquanto investiga. O serviço é usado por clientes e pelo suporte; uma interrupção tem impacto operacional.
+
+Apresente sua decisão, alternativas, medidas imediatas e critérios de validação. Descreva como comprovar a correção, monitorar recorrência e comunicar impacto à equipe responsável. Diferencie evidência confirmada, risco estimado e informação ainda ausente.""")]
     return [
-        dict(title='Investigar autenticação',briefing='Cenário fictício SOC. 09:00 login failed user=deploy ip=192.0.2.18; 09:01 login failed user=deploy ip=192.0.2.18; 09:02 login success user=deploy ip=192.0.2.18. Horário habitual: 13h às 18h, origem esperada 198.51.100.10. Identifique a hipótese e evidências; explique por que esses dados ainda não provam comprometimento.'),
-        dict(title='Correlacionar os eventos',briefing='09:03 a sessão de deploy iniciou uma exportação; 09:04 houve download de arquivo de teste; 09:05 o SIEM alertou sobre acesso fora do horário. Construa a linha do tempo, correlacione identidade e origem, e indique informações adicionais a consultar.'),
-        dict(title='Conter e comunicar',briefing='A equipe confirmou que o responsável não reconhece a sessão. Proponha contenção proporcional, preservação de evidências, validação da recuperação e comunicação do incidente. Explique a ordem das ações e os riscos de bloquear uma conta de serviço.')]
+        dict(title='Investigar o dossiê SOC', briefing="""DOSSIÊ SOC / v2 · captura sintética
+Janela: 09:00–09:15 UTC. Endereços reservados para documentação.
+
+AUTENTICAÇÃO
+09:00 auth-01 user=deploy src=192.0.2.18 result=failed
+09:01 auth-02 user=deploy src=192.0.2.18 result=failed
+09:02 auth-03 user=deploy src=192.0.2.18 result=success session=s-71 mfa=not_enrolled
+09:02 auth-04 user=ana src=203.0.113.34 result=success session=s-72 mfa=passed
+09:03 auth-05 user=backup src=198.51.100.10 result=success session=s-73
+
+APLICAÇÃO
+09:03 req-71 session=s-71 GET /reports/export result=200 rows=5000
+09:04 req-72 session=s-72 GET /reports result=200 rows=20
+09:05 req-73 session=s-73 POST /backup result=202 job=b-19
+09:06 req-74 session=s-71 GET /reports/export result=200 rows=5000
+09:07 req-75 session=s-71 GET /admin/users result=403
+
+OPERAÇÃO
+CHG-104: backup previsto 09:00–09:30, conta=backup
+Cadastro deploy: origem habitual 198.51.100.10, janela habitual 13:00–18:00
+Alerta e-18: CPU acima de 80% às 09:05
+
+Documente a linha do tempo e priorize o que precisa ser investigado. Apresente hipóteses concorrentes e cite os registros que sustentam ou limitam cada uma. Não presuma que um alerta, sozinho, prova comprometimento."""),
+        dict(title='Correlacionar e decidir', briefing="""EVIDÊNCIAS ADICIONAIS / SOC v2
+09:05 process p-19 parent=backup-agent action=compress job=b-19
+09:06 network n-21 service=web bytes_out=8400000 request=req-74
+09:08 monitor e-22 disk_latency=high host=storage-02
+09:09 backup b-19 state=completed checksum=ok
+09:10 chamado OPS-208: o responsável por deploy ainda não foi contatado
+Ausentes: conteúdo exportado, origem da credencial e resultado de validação com o responsável.
+
+Correlacione as fontes e indique o que pode ser atribuído ao mesmo evento. Decida quais ações são proporcionais agora, quais exigem confirmação e qual informação mudaria sua decisão. Justifique prioridade, impacto e preservação de evidências."""),
+        dict(title='Entregar relatório de incidente', briefing="""RELATÓRIO / SOC v2
+A equipe solicita um parecer para decidir continuidade operacional, investigação e comunicação. Você dispõe apenas das capturas apresentadas.
+
+Entregue: síntese executiva; achados com referências; hipóteses e confiança; ações em ordem de prioridade; riscos de cada ação; responsáveis a acionar; critérios para recuperação e encerramento. Declare expressamente os limites do seu parecer e as informações que ainda precisam ser verificadas.""")]
 
 
 def register_routes(app,db,login_required):

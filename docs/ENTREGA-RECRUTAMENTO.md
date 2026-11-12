@@ -1,3 +1,5 @@
+> Registro histórico. Para o estado e os testes da versão de apresentação, consulte [ENTREGA-APRESENTACAO.md](ENTREGA-APRESENTACAO.md).
+
 # Entrega local — recrutamento por evidências
 
 Registro da primeira entrega de 06/11/2026. A gestão editorial posterior está em [ENTREGA-GESTAO-VAGAS.md](ENTREGA-GESTAO-VAGAS.md); consulte esse registro para o estado mais recente.

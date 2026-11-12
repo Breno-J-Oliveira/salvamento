@@ -18,7 +18,7 @@ class IncidentLabTests(unittest.TestCase):
 
     def test_health_and_read_only_observation_pages(self):
         self.assertEqual(self.client.get('/health').get_json(), {'status': 'ok'})
-        for path in ('/', '/access', '/events', '/processes'):
+        for path in ('/', '/access', '/events', '/processes', '/changes', '/network'):
             with self.subTest(path=path):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
@@ -33,11 +33,21 @@ class IncidentLabTests(unittest.TestCase):
         self.assertIn('192.0.2.172', access)
         self.assertIn('req-b14', access)
         self.assertIn('req-b14', events)
-        for path in ('/', '/access', '/events', '/processes', '/health'):
+        for path in ('/', '/access', '/events', '/processes', '/changes', '/network', '/health'):
             body = self.client.get(path).get_data(as_text=True)
             self.assertNotIn('CTF{', body)
             self.assertNotIn('ab0123456789cdef', body)
             self.assertNotIn(os.environ.get('FLAG', 'test-secret-flag-never-present'), body)
+
+    def test_operational_noise_has_correlated_context(self):
+        changes=self.client.get('/changes').get_data(as_text=True)
+        network=self.client.get('/network').get_data(as_text=True)
+        events=self.client.get('/events').get_data(as_text=True)
+        for body in (changes,network,events):
+            self.assertIn('b-19',body)
+        self.assertIn('req-b14',network)
+        self.assertIn('192.0.2.172',network)
+        self.assertIn('198.51.100.44',self.client.get('/access').get_data(as_text=True))
 
     def test_instance_seed_changes_correlated_address(self):
         path = Path(__file__).resolve().parents[1] / 'challenges' / 'incident-01' / 'app.py'

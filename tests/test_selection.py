@@ -3,7 +3,9 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 import app as module
+import selection
 
 class SelectionTests(unittest.TestCase):
     def setUp(self):
@@ -51,6 +53,26 @@ class SelectionTests(unittest.TestCase):
         response='Relato com evidências suficientes e hipóteses justificadas.'
         self.post({'step':0,'response':response})
         self.assertEqual(self.post({'step':0,'response':response}).status_code,400)
+
+    def test_started_assessment_keeps_its_dossier_after_content_changes(self):
+        self.post({'step':0,'response':'Parecer inicial com referências e hipóteses suficientes para avaliação.'})
+        original=self.scalar('SELECT briefing FROM selection_stages WHERE application_id=1 AND position=1')
+        with patch.object(selection,'scenario',return_value=[{'title':'Alterado','briefing':'Conteúdo posterior'}]):
+            response=self.client.get('/my-applications/1/assessment')
+            self.assertIn(original.encode(),response.data)
+            self.assertNotIn('Conteúdo posterior'.encode(),response.data)
+            self.assertEqual(self.post({'step':1,'response':'Decisão fundamentada nas evidências da versão original recebida.'}).status_code,302)
+        self.assertEqual(self.scalar('SELECT briefing FROM selection_stages WHERE application_id=1 AND position=1'),original)
+
+    def test_new_dossier_has_correlated_evidence_without_prescribed_solution(self):
+        response=self.client.get('/my-applications/1/assessment')
+        self.assertIn(b'DOSSI',response.data)
+        self.assertIn(b'auth-03',response.data)
+        self.assertIn(b'req-74',response.data)
+        # The next briefing is only rendered after the preceding response.
+        self.assertNotIn(b'process p-19',response.data)
+        self.assertEqual(len(selection.scenario('Red Team')),3)
+        self.assertIn('cache=HIT',selection.scenario('Red Team')[0]['briefing'])
     def test_legacy_assessment_migrates_to_relational_rows(self):
         import selection
         con=sqlite3.connect(os.path.join(self.temp.name,'legacy-selection.db'))

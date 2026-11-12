@@ -1,3 +1,5 @@
+> Registro histórico. Para o estado e os testes da versão de apresentação, consulte [ENTREGA-APRESENTACAO.md](ENTREGA-APRESENTACAO.md).
+
 # Revisão de segurança — aplicação local
 
 Revisão dirigida aos fluxos de autenticação, formulários, permissões e laboratórios. Não substitui auditoria independente nem homologação para acesso público.

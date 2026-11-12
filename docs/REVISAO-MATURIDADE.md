@@ -1,3 +1,5 @@
+> Registro histórico. Para o estado e os testes da versão de apresentação, consulte [ENTREGA-APRESENTACAO.md](ENTREGA-APRESENTACAO.md).
+
 # Revisão de maturidade e integração
 
 Data: 6 de novembro de 2026. Objetivo: melhorar os sistemas existentes, sem expandir o catálogo ou trocar a arquitetura.

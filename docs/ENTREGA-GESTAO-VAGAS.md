@@ -1,3 +1,5 @@
+> Registro histórico. Para o estado e os testes da versão de apresentação, consulte [ENTREGA-APRESENTACAO.md](ENTREGA-APRESENTACAO.md).
+
 # Gestão editorial de vagas — entrega de 06/11/2026
 
 O novo módulo vacancies.py acrescenta editor de vagas em /admin/jobs/new e /admin/jobs/<id>/edit, prévia exclusiva da equipe e ações de estado com CSRF, autorização e revisão do registro. A identidade visual e a stack atuais foram preservadas.

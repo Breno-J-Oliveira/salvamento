@@ -10,3 +10,6 @@ lab.db-*
 output/
 .playwright-cli/
 node_modules/
+backups/
+*.backup.db
+*.backup.db-*

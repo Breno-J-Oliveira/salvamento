@@ -2,9 +2,11 @@
 
 Plataforma local de desafios CTF, avaliação de participantes e oportunidades. Integra a base Python/Flask e SQLite entregue pela equipe ao novo visual fornecido nas imagens do Figma e nas referências HTML/CSS/JavaScript da equipe.
 
+Entrega para apresentação: consulte o [roteiro de demonstração](docs/APRESENTACAO.md), a [verificação atual](docs/ENTREGA-APRESENTACAO.md) e a [revisão de segurança](docs/SEGURANCA-FINAL.md). Os relatórios anteriores e o documento Word de testes registram suas respectivas etapas históricas.
+
 ## Executar no Windows
 
-Requisitos: Python 3.12 ou superior. Docker Desktop com engine Linux é necessário somente para o laboratório Intranet. O recrutamento e as avaliações simuladas funcionam sem Docker. Na pasta do projeto:
+Requisitos: Python 3.12 ou superior. Docker Desktop com engine Linux é necessário para a Intranet e o console final de investigação. Formulários, candidaturas e avaliações por dossiê funcionam sem Docker. Na pasta do projeto:
 
 ```powershell
 python -m venv .venv
@@ -15,6 +17,10 @@ python -m venv .venv
 Abra **http://127.0.0.1:5000**. Cadastre sua conta de participante. O banco `lab.db` é preservado entre execuções; não o apague para atualizar a aplicação. A chave de sessão é gerada em `.session-key`, ou pode ser fornecida por `SECRET_KEY` no ambiente.
 
 O acesso demonstrativo de mentoria herdado da equipe é `mentor@cti.local` / `mentor123`, criado apenas quando o banco não tem usuários. Bancos existentes mantêm suas credenciais. Esse acesso é exclusivo para demonstração local; esta versão não deve ser publicada na internet.
+
+## Preservar os dados
+
+Crie o diretório de destino fora do repositório e execute `.\.venv\Scripts\python.exe scripts/backup_database.py backup lab.db D:/backups/purple-talent.backup.db`. O destino precisa ser novo; o comando não substitui arquivos. Para ensaiar a restauração, use a operação `restore` com a cópia como origem e outro arquivo novo como destino. Guarde banco, cópias e chave de sessão em local protegido; não envie esses arquivos ao GitHub.
 
 ## Fluxos disponíveis
 

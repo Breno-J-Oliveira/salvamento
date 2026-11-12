@@ -12,10 +12,8 @@
 <section class="card">
 <h2>Briefing da missão</h2>
 <div class="pre">{{ c.description }}</div>
-</section>{% if c.hint %}<details class="card">
-<summary>Precisa de uma dica?</summary>
-<p>{{ c.hint }}</p>
-</details>{% endif %}</div>
+{% if c.image == 'cti-lab/incident-01' %}<p class="field-help">Você tem até 12 respostas incorretas em 24 horas. Reiniciar o ambiente não reinicia esse limite. Correlacione os registros antes de enviar.</p>{% endif %}
+</section></div>
 <div class="challenge-actions">{% if c.image %}<section class="card lab-card">
 <h2>Seu ambiente virtual</h2>{% if inst %}{% if inst.available %}<span class="tag blueteam">Ambiente iniciado</span>
 <p>Acesse o ambiente para investigar os registros disponíveis.</p>

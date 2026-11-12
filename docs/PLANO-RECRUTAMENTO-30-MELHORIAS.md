@@ -1,3 +1,5 @@
+> Estado para apresentação: consulte ENTREGA-APRESENTACAO.md. A lista abaixo é backlog; não representa 30 entregas concluídas nem homologação empresarial.
+
 # Evolução para recrutamento por evidências
 
 Esta lista registra propostas e critérios para evolução. Itens só são considerados entregues quando implementados e verificados; não representam aceite da empresa.
