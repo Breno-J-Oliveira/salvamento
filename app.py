@@ -224,7 +224,13 @@ def index():
                    labs=d.execute('SELECT COUNT(*) FROM challenges WHERE image IS NOT NULL').fetchone()[0],
                    points=d.execute('SELECT COALESCE(SUM(points),0) FROM challenges').fetchone()[0],
                    own_points=own.get('points',0))
-    return render_template('home.html', stats=summary)
+    # A mesma regra editorial da inscrição também protege os destaques públicos.
+    now = int(time.time())
+    featured_jobs = []
+    for row in d.execute("SELECT * FROM jobs WHERE status='published' AND active=1 AND (deadline_at IS NULL OR deadline_at>?) ORDER BY created_at DESC,id DESC LIMIT 3", (now,)):
+        if vacancies.is_open(row, now):
+            featured_jobs.append(vacancies.decorate(row))
+    return render_template('home.html', stats=summary, featured_jobs=featured_jobs)
 
 
 @app.route('/labs')
@@ -279,7 +285,7 @@ def login():
             session.permanent = True
             if u["role"] == "mentor":
                 return redirect("/admin")
-            return redirect(recruitment.safe_next(request.form.get("next") or request.args.get("next")) or "/challenges")
+            return redirect(recruitment.safe_next(request.form.get("next") or request.args.get("next")) or "/my-applications")
         flash("E-mail ou senha inválidos.")
     return render_template("login.html")
 

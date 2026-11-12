@@ -1,5 +1,7 @@
 # Purple Talent
 
+Integração visual para 19/11: [entrega e verificação](docs/ENTREGA-POLIMENTO-19.md), [imagens e origem](docs/IMAGENS-APRESENTACAO.md). Para iniciar esta cópia sem ambiguidades: `./scripts/run_local.ps1`; para a demonstração separada sem Docker: `./scripts/run_local.ps1 -Demo -Port 5057`. O launcher identifica pasta/versão/base e recusa portas ocupadas.
+
 A evolução mais recente está em [23 melhorias de usabilidade](docs/EVOLUCAO-23-MELHORIAS.md), com verificações do editor, jornada do candidato e laboratórios.
 
 Plataforma local de desafios CTF, avaliação de participantes e oportunidades. Integra a base Python/Flask e SQLite entregue pela equipe ao novo visual fornecido nas imagens do Figma e nas referências HTML/CSS/JavaScript da equipe.

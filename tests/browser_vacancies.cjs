@@ -42,13 +42,13 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
  });
  await check('V04 Candidato salva inscrição antes do encerramento',async()=>{
   await go(cp,'/register');await cp.locator('[name=name]').fill('Pessoa QA Vagas');await cp.locator('[name=email]').fill(email);await cp.locator('[name=password]').fill(password);await cp.getByRole('button',{name:'Criar minha conta'}).click();await cp.waitForURL(/\/login/);
-  await cp.locator('[name=email]').fill(email);await cp.locator('[name=password]').fill(password);await cp.getByRole('button',{name:'Entrar na plataforma'}).click();await cp.waitForURL('**/challenges');
+  await cp.locator('[name=email]').fill(email);await cp.locator('[name=password]').fill(password);await cp.getByRole('button',{name:'Entrar na plataforma'}).click();await cp.waitForURL('**/my-applications');
   await go(cp,`/applications/${jid}/form`);await cp.locator('[name=q_availability]').fill('Horário comercial');await cp.locator('[name=q_experience]').fill('Projeto sintético de investigação de logs e alertas.');await cp.getByRole('button',{name:'Revisar inscrição'}).click();await cp.waitForURL(`**/applications/${jid}/review`);
  });
  await check('V05 Pausa preserva rascunho e bloqueia confirmação',async()=>{
   await stateAction('paused');
   await cp.getByRole('button',{name:'Confirmar candidatura'}).click();assert.equal(cp.url().includes(`/applications/${jid}/review`),true);await cp.getByText(/encerrad|recebendo|inscriç|pausad/i).first().waitFor();
-  await go(cp,'/my-applications');await cp.locator('article').filter({hasText:title}).getByRole('link',{name:'Continuar inscrição'}).waitFor();
+  await go(cp,'/my-applications');const draft=cp.locator('article').filter({hasText:title});await draft.getByRole('link',{name:/Consultar minhas respostas/}).waitFor();assert.equal(await draft.getByRole('link',{name:/Continuar inscrição/}).count(),0);await draft.getByText('Seu rascunho foi preservado.',{exact:false}).waitFor();
   assert.equal((await go(ap,`/opportunities/${jid}`)).status(),404);
  });
  await check('V06 Reabertura explícita permite enviar sem perder respostas',async()=>{

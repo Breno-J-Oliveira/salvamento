@@ -266,7 +266,8 @@ def register_routes(app,db,login_required,mentor_required):
     def opportunity(jid):
         j=job(jid)
         if vacancies.state(j) in ('draft','paused'):abort(404)
-        return render_template('opportunity.html',job=j)
+        question_count=db().execute('SELECT COUNT(*) FROM form_questions WHERE version_id=?',(j['current_form_version'],)).fetchone()[0] if j['current_form_version'] else len(defaults(j['side']))
+        return render_template('opportunity.html',job=j,question_count=question_count)
 
     @app.route('/applications/<int:jid>/form',methods=['GET','POST'])
     @login_required
@@ -364,6 +365,8 @@ def register_routes(app,db,login_required,mentor_required):
             item['deadline_label']=vacancies.deadline_label(item)
             item['job_receives_applications']=vacancies.is_open(dict(status=item['job_status'],active=item['job_active'],deadline_at=item['deadline_at']))
             assessment=assessment_progress.get(item['id'])
+            item['assessment_submitted']=bool(assessment and assessment['submitted_at'])
+            item['assessment_started']=bool(assessment)
             item['progress_label']='Formulário em rascunho' if item['status']=='draft' else ('Avaliação prática enviada para revisão' if assessment and assessment['submitted_at'] else f"Avaliação prática: {assessment['completed']} de 3 etapas registradas" if assessment else 'Formulário enviado; avaliação prática ainda não iniciada')
             if item['status'] in ('interview','selected','rejected','withdrawn'):item['progress_label']={'interview':'Etapa atual: entrevista com a equipe','selected':'A equipe registrou a aprovação nesta seleção','rejected':'A equipe encerrou sua participação nesta seleção','withdrawn':'Participação encerrada por desistência'}[item['status']]
         return render_template('my_applications.html',applications=applications,application_count=application_count,selected_status=selected_status)
@@ -404,6 +407,7 @@ def register_routes(app,db,login_required,mentor_required):
         q=request.args.get('q','').strip()
         selected_status=request.args.get('status','')
         job_id=request.args.get('job_id','')
+        work=request.args.get('work','')
         raw_page=request.args.get('page','1')
         if len(q)>120 or (selected_status and (selected_status not in STATUSES or selected_status=='draft')):
             abort(400,description='Confira a busca e a etapa informada.')
@@ -411,6 +415,8 @@ def register_routes(app,db,login_required,mentor_required):
             abort(400,description='Informe uma página válida.')
         if job_id and (not re.fullmatch(r'[0-9]{1,18}',job_id) or int(job_id)<1):
             abort(400,description='Informe uma vaga válida.')
+        if work not in ('','ready','ongoing'):
+            abort(400,description='Escolha uma situação válida para a avaliação.')
         page=int(raw_page);per_page=20
         rows=[vacancies.decorate(r) for r in db().execute("SELECT j.*, (SELECT COUNT(*) FROM applications a WHERE a.job_id=j.id AND a.status!='draft') applicant_count FROM jobs j ORDER BY j.id DESC")]
         for item in rows:item['application_count']=item['applicant_count']
@@ -422,13 +428,20 @@ def register_routes(app,db,login_required,mentor_required):
             conditions.append("(u.name LIKE ? ESCAPE '!' OR j.title LIKE ? ESCAPE '!')");params.extend([term,term])
         if selected_status:conditions.append('a.status=?');params.append(selected_status)
         if job_id:conditions.append('a.job_id=?');params.append(int(job_id))
+        actionable="a.status IN ('submitted','review')"
+        completed="EXISTS(SELECT 1 FROM selection_assessments sa WHERE sa.application_id=a.id AND sa.submitted_at IS NOT NULL)"
+        unreviewed="NOT EXISTS(SELECT 1 FROM selection_reviews r WHERE r.application_id=a.id)"
+        if work=='ready':conditions.append(actionable+' AND '+completed+' AND '+unreviewed)
+        elif work=='ongoing':conditions.append(actionable+' AND NOT '+completed)
         filtered=base+(' AND '+' AND '.join(conditions) if conditions else '')
         total=db().execute('SELECT COUNT(*)'+filtered,params).fetchone()[0]
         pages=max(1,(total+per_page-1)//per_page);page=min(page,pages)
         applications=[dict(r) for r in db().execute('SELECT a.id,a.job_id,a.status,u.name,j.title job_title'+filtered+' ORDER BY a.id DESC LIMIT ? OFFSET ?',params+[per_page,(page-1)*per_page])]
         stats=dict(jobs=len(rows),applications=db().execute('SELECT COUNT(*)'+base).fetchone()[0],drafts=db().execute("SELECT COUNT(*) FROM applications WHERE status='draft'").fetchone()[0])
+        stats['ready']=db().execute('SELECT COUNT(*)'+base+' AND '+actionable+' AND '+completed+' AND '+unreviewed).fetchone()[0]
+        stats['ongoing']=db().execute('SELECT COUNT(*)'+base+' AND '+actionable+' AND NOT '+completed).fetchone()[0]
         return render_template('admin.html',jobs=rows,applications=applications,stats=stats,
-            filters=dict(q=q,status=selected_status,job_id=job_id),
+            filters=dict(q=q,status=selected_status,job_id=job_id,work=work),
             pagination=dict(page=page,pages=pages,total=total,per_page=per_page))
 
     @app.route('/admin/jobs/<int:jid>/form',methods=['GET','POST'])

@@ -1,3 +1,17 @@
+# Continuidade local — integração visual para 19/11/2026
+
+Esta atualização local de 12/11 prevalece sobre o estado anterior abaixo. Base: salvamento 9ee1201, com publicação desta integração autorizada pelo usuário nesta conversa. Consulte o histórico Git para identificar o commit publicado. A versão em execução nesta máquina está em `.runtime/salvamento-atual` da pasta original; a raiz original mantém a cópia antiga e seus dados.
+
+- Integrados: nova landing com duas artes originais otimizadas e capturas reais fictícias, navegação móvel, autenticação, cards de vagas/candidaturas, próxima ação, âncoras administrativas e filas de revisão. Formulários e avaliações continuam relacionais e privados. Há informação de quantidade de perguntas sem criar versão no GET público.
+- Execução inequívoca: `scripts/run_local.ps1` nesta versão; `INICIAR-PURPLE-TALENT.ps1` na raiz original aponta para ela. Porta 5000 usa banco local preservado; `-Demo -Port 5057` usa banco fictício separado. Não executar app.py da raiz antiga por engano.
+- `scripts/prepare_demo.py` cria somente destino novo, com dados sintéticos e marcador; não sobrescreve ou popula banco da equipe. Bases de QA ficam em output ignorado. Credenciais locais de demonstração e roteiro em docs/APRESENTACAO.md.
+- Verificação final desta integração: 168 testes Python executados, 166 aprovados e 2 testes reais Docker ignorados. Navegador: 15 cenários novos, 18 de regressão do recrutamento e 10 editoriais aprovados. Esses roteiros se sobrepõem em funcionalidades; não contar como 43 funcionalidades distintas. Sem teste de Docker real.
+- Capturas em 390/768/1440 px, navegação por teclado/no-JS, contraste de pares principais e reflow equivalente a 200% conferidos; leitor de tela/projetor e teste com colegas ainda precisam de ensaio humano. Backup/restauração ensaiados em arquivos novos com integridade e contagens preservadas.
+- Material de contingência sintético em output/qa/presentation/contingencia: vídeos por papel e PDF. Não apresentar gravação como funcionamento ao vivo.
+- Detalhes e limites: docs/ENTREGA-POLIMENTO-19.md; origem/prompts das artes: docs/IMAGENS-APRESENTACAO.md. Stack e identidade preservadas. Não houve publicação remota, instalação Docker, novos papéis/multiempresa, email ou serviço público. Autorização histórica de salvamento não implica publicação em purple-talent.
+
+---
+
 # Purple Talent — contexto e continuidade do projeto
 
 ## Leia primeiro estado consolidado em 12 de novembro de 2026
