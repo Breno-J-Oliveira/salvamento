@@ -35,6 +35,8 @@ Type=simple
 ExecStart=/usr/bin/python3 /opt/purple-agent/lab_agent.py --server https://10.0.2.100:8443 --ca-file /etc/purple-agent/bridge.crt --token-file /etc/purple-agent/token --workspace /srv/purple-lab --run-as purplelab --isolated-lab
 Restart=on-failure
 RestartSec=5
+StandardOutput=journal+console
+StandardError=journal+console
 [Install]
 WantedBy=multi-user.target
 '''
@@ -51,9 +53,9 @@ WantedBy=multi-user.target
     files.extend(entry('/srv/purple-lab/'+name, content, '0644') for name, content in fixtures.items())
     config = dict(hostname='purple-lab', manage_etc_hosts=True, disable_root=True,
         ssh_pwauth=False, package_update=False, package_upgrade=False,
-        users=[dict(name='purplelab', uid=1000, primary_group='purplelab', groups=[],
-                    lock_passwd=True, shell='/bin/bash')], write_files=files,
-        runcmd=[['chown','-R','purplelab:purplelab','/srv/purple-lab'],
+        users=[], write_files=files,
+        runcmd=[['useradd','--create-home','--user-group','--uid','1100','--shell','/bin/bash','purplelab'],
+                ['chown','-R','purplelab:purplelab','/srv/purple-lab'],
                 ['chmod','700','/srv/purple-lab','/etc/purple-agent'],
                 ['systemctl','disable','--now','ssh.service','ssh.socket'],
                 ['systemctl','daemon-reload'],

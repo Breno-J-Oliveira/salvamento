@@ -1,3 +1,30 @@
+# PARADA SOLICITADA — retomada em outra máquina, 12/11/2026
+
+Leia esta seção primeiro. O usuário pediu parar tudo para desligar o PC e continuar em outra máquina. Desenvolvimento interrompido após o teste real da VM. Aplicação5000, demonstração5057, ponte8443 e browser de QA foram encerrados. A VM já havia sido desligada pelo supervisor após encerrar a sessão de teste. Nenhuma VM deve ser presumida em execução ao retomar.
+
+## Ponto exato da parada
+
+- Repositório correto `Breno-J-Oliveira/salvamento`, branch main. Publicações antes das16h20 confirmadas em `6ff9c61` e `97a3bac`. A correção final de criação da conta Linux e este registro são salvos no commit de continuidade seguinte. Consultar `git log -1` para o SHA final. Não usar purple-talent.
+- Checkout atual neste PC `C:/Users/Dev_2o_Ano/Desktop/desafio-de-ideias/.runtime/salvamento-atual`. A raiz Desktop/desafio-de-ideias é a versão antiga. Em outra máquina clonar salvamento diretamente numa pasta nova.
+- **VM REAL FUNCIONOU**, com Ubuntu24.04 mínimo, kernel6.8, systemd255, QEMU portátil/TCG. Teste integrado ocorreu no banco DEMO e site5057. Usuário executor UID1100, grupo exclusivo purplelab, virtualizador detectado qemu. `cat access.log` devolveu os registros fictícios reais da VM.
+- O participante não conseguiu ler `/etc/purple-agent/token` nem `/var/lib/cloud/instance/user-data.txt`. Conexões para host10.0.2.2:5000 e externo1.1.1.1:443 foram bloqueadas. Filho iniciado via `setsid sleep60` foi encerrado pelo cgroup, confirmado por consulta sem processos restantes. Mentor abriu a sessão real no navegador e viu resultados. Esses testes não equivalem a auditoria completa.
+- Sessão DEMO id1 terminou com status ended e máquinaDEMO id1 retired. O supervisor encerrou a VM. **Ainda não foi preparada uma máquina limpa para o banco PRINCIPAL5000**, que continua com zero máquinas e zero sessões remotas. Este é o primeiro passo funcional pendente depois de preparar o novo host.
+- Evidências privadas locais em `.runtime/local-vm/real-validation.json`, `isolation-validation.json` e `output/qa/remote-labs/real-observer.png`. Não estão no Git. Não reutilizar executor aposentado para outro participante.
+
+## Correções finais importantes
+
+O seed como CD-ROM não foi detectado no primeiro boot. `run_local_vm.py` agora conecta a ISO como disco virtio RAW e passa SMBIOS ds=nocloud. O primeiro users_groups falhou na criação da conta. `prepare_local_vm.py` agora usa users vazio e cria purplelab explicitamente com useradd --user-group --uid1100 no runcmd. Essa correção foi aplicada à VM de teste e validada. Ponte HTTPS validada com CA própria e autenticação bearer. No Windows atual WHPX falhou por virtualização aninhada indisponível, então usamos TCG sem instalar drivers nem alterar BIOS/recursos Windows. Boot levou vários minutos.
+
+Scripts desta fase `scripts/prepare_local_vm.py`, `run_local_vm.py`, `lab_tls_bridge.py`, `lab_agent.py` com --ca-file. Não há instalador automático de runtime nem recriação automática de pool. Supervisor inicia uma VM já preparada e a desliga ao aposentar/atingir reserva1200MB. Seed individual, imagem base, overlay, token, certificado e logs ficam privados/ignorados. Testes da ponte7passaram. Testes do agente16executados,14passaram e2testes systemd do unittest foram ignorados no Windows. Depois, o ensaio integrado real acima comprovou comandos/identidade/rede/observação, sem executar esses dois unittests dentro da VM. Suíte anterior213teve209pass e4skips antes desta infraestrutura; não declarar suíte integral reexecutada depois das últimas mudanças.
+
+## Como continuar
+
+Seguir `docs/RETOMADA-OUTRA-MAQUINA.md` e `docs/LABORATORIOS-REMOTOS.md`. Primeiro subir aplicação com base demo nova, preparar runtime verificado no host, cadastrar executor novo e iniciar ponte/VM. Depois repetir smoke real, preparar outra VM limpa apontando a ponte para5000 e o cadastro para lab.db. Confirmar botão disponível sem consumir a VM destinada ao usuário. Só então avançar criação/recriação pelo site e hospedagem externa. Docker não é dependência desse caminho.
+
+O Git contém código e documentação. Bancos, .session-key, .venv, imagens/overlays ISO e certificados privados não vão no Git. Preservar esses arquivos neste PC. Para levar dados existentes, copiar banco e chave por canal privado autorizado, com aplicação parada; nunca sobrescrever banco novo sem backup. Nenhuma senha pessoal ou token deve ser incluído em instruções/prompts/commits.
+
+---
+
 # Execução local da VM Linux — 12/11/2026
 
 Usuário autorizou conectar uma VM Linux neste PC e pediu publicação antes das16h20. Como a sessão Windows não tem privilégios administrativos e WHPX falhou com erro de virtualização aninhada, foi escolhido QEMU portátil com emulação TCG. VirtualBox continua alternativa para o servidor institucional, mas o caminho local atual usa QEMU.
