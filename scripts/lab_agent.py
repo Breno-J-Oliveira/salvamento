@@ -12,6 +12,7 @@ import re
 import selectors
 import signal
 import stat
+import ssl
 import subprocess
 import time
 import urllib.error
@@ -231,6 +232,7 @@ def main():
     parser.add_argument('--run-as', required=True)
     parser.add_argument('--isolated-lab', action='store_true')
     parser.add_argument('--allow-local-http', action='store_true')
+    parser.add_argument('--ca-file', help='Additional trusted CA for a private HTTPS lab gateway.')
     args = parser.parse_args()
     try:
         identity, workspace = execution_identity(args.run_as, args.workspace, args.isolated_lab)
@@ -242,7 +244,8 @@ def main():
     # One-use commands remain remembered for the life of this disposable VM.
     results = {}
     pending = None
-    opener = urllib.request.build_opener(NoRedirect())
+    context = ssl.create_default_context(cafile=args.ca_file)
+    opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=context))
     while True:
         try:
             reply = poll(opener, url, token, pending)

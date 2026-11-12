@@ -1,3 +1,15 @@
+## Caminho local com QEMU portátil
+
+O PC atual usa QEMU portátil e Ubuntu24.04 mínimo em arquivos privados de `.runtime/local-vm`. A imagem foi obtida da Canonical e o pacote Windows da fonte indicada pelo projeto QEMU. Ambos foram conferidos contra os hashes publicados. O Windows deste PC não disponibilizou aceleração WHPX, então o boot usa emulação TCG e pode levar vários minutos.
+
+Com os assets verificados já preparados neste PC, use o Python da `.venv` para iniciar `scripts/lab_tls_bridge.py --cert-file .runtime/local-vm/bridge.crt --key-file .runtime/local-vm/bridge.key --app-port 5000`. Em seguida execute `scripts/prepare_local_vm.py --database lab.db`, salve o JSON retornado em um arquivo privado e passe esse arquivo para `scripts/run_local_vm.py --metadata CAMINHO-DO-JSON`. O arquivo JSON contém caminhos e ID, sem o token. Para demonstrar com a base fictícia, use o banco de demonstração e a ponte com app-port5057.
+
+A ponte e o supervisor devem permanecer em execução. O supervisor encerra a VM após aposentadoria ou por reserva de disco. O próximo uso exige novo overlay/seed/token. Credenciais e ISO pertencem ao operador e nunca entram no Git. O certificado local tem validade30dias e deve ser renovado com a VM correspondente antes de expirar. Esta preparação local não publica o servidor na internet.
+
+Fontes [QEMU Windows](https://www.qemu.org/download/#windows) e [Ubuntu mínimo](https://cloud-images.ubuntu.com/minimal/releases/noble/release/).
+
+---
+
 # Operação dos laboratórios acompanhados
 
 ## Estado da implementação

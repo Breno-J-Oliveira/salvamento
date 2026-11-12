@@ -1,3 +1,15 @@
+# Execução local da VM Linux — 12/11/2026
+
+Usuário autorizou conectar uma VM Linux neste PC e pediu publicação antes das16h20. Como a sessão Windows não tem privilégios administrativos e WHPX falhou com erro de virtualização aninhada, foi escolhido QEMU portátil com emulação TCG. VirtualBox continua alternativa para o servidor institucional, mas o caminho local atual usa QEMU.
+
+- Downloads verificados por SHA512 do pacote QEMU Windows20260811 e SHA256 da imagem oficial Ubuntu24.04 mínima20261105. Binários extraídos sem instalar drivers. Python3 e systemd255 já vêm na imagem. pycdlib1.14.0 fica extraído em runtime somente para gerar ISO, separado das dependências da aplicação.
+- `.runtime/local-vm` tem ACL privada Windows, imagem-base imutável, overlay descartável, ISO cloud-init individual e certificado local. Esses arquivos, credenciais e logs permanecem ignorados pelo Git.
+- `scripts/prepare_local_vm.py` prepara nova imagem/credencial de executor. `scripts/run_local_vm.py` supervisiona uma VM de1GB RAM/2vCPUs, escrita de disco limitada a10MB/s e encerra ao atingir reserva de1200MB ou ao aposentar a máquina. Cada sessão requer nova preparação. Não expõe SSH, pastas ou área de transferência.
+- Rede QEMU restrict=on e IPv6 desativado, com único guestfwd para ponteHTTPS127.0.0.1:8443. `scripts/lab_tls_bridge.py` expõe exclusivamente o polling autenticado, valida limites e encaminha para o Flask em loopback. Agente usa CA local explícita e mantém validação TLS.
+- Verificação desta fatia até a publicação inicial: sete testes da ponte aprovados,16testes do agente executados com14aprovados e2Linux reais ignorados no Windows. Primeiro boot Linux real em andamento. Acompanhamento e execução do comando final ainda aguardam conexão do agente. Atualizar este registro ao terminar o ensaio.
+
+---
+
 # Mudança de direção — laboratórios remotos acompanhados, sem Docker
 
 Atualização de 12/11/2026. Esta seção prevalece sobre as anteriores. O usuário autorizou planejar e começar a substituição dos ambientes Docker, com execução real online e acompanhamento do avaliador. Escolheu usar um computador/servidor do SENAI com Windows e configuração semelhante à atual. A integração de virtualizador planejada será VirtualBox nesse host, com VM Linux/systemd para o agente. Nesta máquina há 15,75 GB de RAM e 5,23 GB livres, sem VirtualBox instalado. A versão de trabalho continua em `.runtime/salvamento-atual` da pasta original.
