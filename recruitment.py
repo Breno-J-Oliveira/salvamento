@@ -13,6 +13,14 @@ from itsdangerous import TimestampSigner, BadSignature
 
 STATUSES = {'draft':'Rascunho','submitted':'Enviada','review':'Em avaliação','interview':'Entrevista','selected':'Aprovada','rejected':'Não selecionada','withdrawn':'Desistência'}
 
+
+def candidate_date(value):
+    try:
+        return (datetime(1970,1,1,tzinfo=timezone.utc)+timedelta(seconds=int(value))).astimezone(vacancies.BRASILIA).strftime('%d/%m/%Y às %H:%M') if value else 'Data indisponível'
+    except (ValueError,TypeError,OverflowError):
+        return 'Data indisponível'
+
+
 def safe_next(value):
     if not isinstance(value, str) or len(value)>500:
         return ''
@@ -244,8 +252,15 @@ def register_routes(app,db,login_required,mentor_required):
 
     @app.get('/opportunities')
     def opportunities():
+        q=request.args.get('q','').strip();side=request.args.get('side','');modality=request.args.get('modality','')
+        sides=('Blue Team','Red Team','Purple Team')
+        if len(q)>120 or (side and side not in sides) or (modality and modality not in vacancies.MODALITIES):
+            abort(400,description='Confira a busca, a área e a modalidade escolhidas.')
         rows=db().execute('SELECT * FROM jobs WHERE active=1 ORDER BY id DESC').fetchall()
-        return render_template('opportunities.html',jobs=[vacancies.decorate(r) for r in rows if vacancies.is_open(r)])
+        jobs=[vacancies.decorate(r) for r in rows if vacancies.is_open(r)]
+        total=len(jobs)
+        jobs=[j for j in jobs if (not side or j['side']==side) and (not modality or j.get('modality')==modality) and (not q or q.casefold() in ' '.join(str(j.get(k) or '') for k in ('title','company','description','location')).casefold())]
+        return render_template('opportunities.html',jobs=jobs,filters=dict(q=q,side=side,modality=modality),sides=sides,modalities=vacancies.MODALITIES,total_open=total)
 
     @app.get('/opportunities/<int:jid>')
     def opportunity(jid):
@@ -333,8 +348,36 @@ def register_routes(app,db,login_required,mentor_required):
     def my_applications():
         participant()
         # Notas internas nunca são carregadas nesta consulta.
-        rows=db().execute('SELECT a.id,a.job_id,a.status,a.created_at,a.updated_at,a.feedback,j.title job_title,j.company FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.user_id=? ORDER BY a.id DESC',(session['user_id'],)).fetchall()
-        return render_template('my_applications.html',applications=[dict(r) for r in rows])
+        selected_status=request.args.get('status','')
+        if selected_status and selected_status not in STATUSES:abort(400,description='Escolha uma etapa válida para acompanhar suas candidaturas.')
+        application_count=db().execute('SELECT COUNT(*) FROM applications WHERE user_id=?',(session['user_id'],)).fetchone()[0]
+        condition=' AND a.status=?' if selected_status else ''
+        params=(session['user_id'],selected_status) if selected_status else (session['user_id'],)
+        rows=db().execute('SELECT a.id,a.job_id,a.status,a.created_at,a.updated_at,a.submitted_at,a.feedback,j.title job_title,j.company,j.deadline_at,j.status job_status,j.active job_active FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.user_id=?'+condition+' ORDER BY a.id DESC',params).fetchall()
+        applications=[dict(r) for r in rows]
+        histories={a['id']:[] for a in applications}
+        for event in db().execute('SELECT h.application_id,h.status,h.created_at FROM application_history h JOIN applications a ON a.id=h.application_id WHERE a.user_id=? ORDER BY h.created_at,h.id',(session['user_id'],)):
+            if event['application_id'] in histories:histories[event['application_id']].append(dict(status=event['status'],date=candidate_date(event['created_at'])))
+        assessment_progress={r['application_id']:dict(r) for r in db().execute('SELECT sa.application_id,sa.submitted_at,COUNT(sr.position) completed FROM selection_assessments sa JOIN applications a ON a.id=sa.application_id LEFT JOIN selection_responses sr ON sr.application_id=sa.application_id WHERE a.user_id=? GROUP BY sa.application_id,sa.submitted_at',(session['user_id'],))}
+        for item in applications:
+            item.update(created_label=candidate_date(item['created_at']),updated_label=candidate_date(item['updated_at']),submitted_label=candidate_date(item['submitted_at']),history=histories[item['id']])
+            item['deadline_label']=vacancies.deadline_label(item)
+            item['job_receives_applications']=vacancies.is_open(dict(status=item['job_status'],active=item['job_active'],deadline_at=item['deadline_at']))
+            assessment=assessment_progress.get(item['id'])
+            item['progress_label']='Formulário em rascunho' if item['status']=='draft' else ('Avaliação prática enviada para revisão' if assessment and assessment['submitted_at'] else f"Avaliação prática: {assessment['completed']} de 3 etapas registradas" if assessment else 'Formulário enviado; avaliação prática ainda não iniciada')
+            if item['status'] in ('interview','selected','rejected','withdrawn'):item['progress_label']={'interview':'Etapa atual: entrevista com a equipe','selected':'A equipe registrou a aprovação nesta seleção','rejected':'A equipe encerrou sua participação nesta seleção','withdrawn':'Participação encerrada por desistência'}[item['status']]
+        return render_template('my_applications.html',applications=applications,application_count=application_count,selected_status=selected_status)
+
+    @app.get('/my-applications/<int:aid>/receipt')
+    @login_required
+    def application_receipt(aid):
+        participant()
+        row=db().execute('SELECT a.id,a.job_id,a.user_id,a.status,a.form_version,a.created_at,a.updated_at,a.submitted_at,a.feedback,j.title job_title,j.company FROM applications a JOIN jobs j ON j.id=a.job_id WHERE a.id=? AND a.user_id=?',(aid,session['user_id'])).fetchone()
+        if not row:abort(404)
+        a=dict(row);questions=load_questions(db(),a['form_version']);answers=read_answers(db(),aid,questions)
+        a.update(created_label=candidate_date(a['created_at']),updated_label=candidate_date(a['updated_at']),submitted_label=candidate_date(a['submitted_at']))
+        history=[dict(status=r['status'],date=candidate_date(r['created_at'])) for r in db().execute('SELECT status,created_at FROM application_history WHERE application_id=? ORDER BY created_at,id',(aid,))]
+        return render_template('application_receipt.html',application=a,questions=questions,answers=answers,history=history)
 
     @app.post('/my-applications/<int:aid>/withdraw')
     @login_required

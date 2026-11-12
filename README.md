@@ -1,5 +1,7 @@
 # Purple Talent
 
+A evolução mais recente está em [23 melhorias de usabilidade](docs/EVOLUCAO-23-MELHORIAS.md), com verificações do editor, jornada do candidato e laboratórios.
+
 Plataforma local de desafios CTF, avaliação de participantes e oportunidades. Integra a base Python/Flask e SQLite entregue pela equipe ao novo visual fornecido nas imagens do Figma e nas referências HTML/CSS/JavaScript da equipe.
 
 Entrega para apresentação: consulte o [roteiro de demonstração](docs/APRESENTACAO.md), a [verificação atual](docs/ENTREGA-APRESENTACAO.md) e a [revisão de segurança](docs/SEGURANCA-FINAL.md). Os relatórios anteriores e o documento Word de testes registram suas respectivas etapas históricas.

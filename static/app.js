@@ -81,62 +81,143 @@ function updateExpiry() {
 updateExpiry(); setInterval(updateExpiry, 15000);
 
 
-// Editor de perguntas: HTML inicial e campos individuais enviados ao servidor.
+// Editor de perguntas: serialização compatível e prévia somente local.
 document.querySelectorAll('[data-question-editor]').forEach(form => {
   const list = form.querySelector('[data-question-list]');
   const status = form.querySelector('[data-editor-status]');
   const add = form.querySelector('[data-question-add]');
   const save = form.querySelector('[data-question-save]');
-  let sequence = 0;
+  const preview = form.querySelector('[data-question-preview]');
+  const undo = form.querySelector('[data-question-undo]');
+  let sequence = 0, submitting = false, lastRemoved = null;
+  const optionValues = row => row.querySelector('[data-question-options]').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+  function questions() {
+    return Array.from(list.children, row => {
+      const type = row.querySelector('[data-question-type]').value;
+      return {id:row.dataset.questionId, label:row.querySelector('[data-question-label]').value.trim(), type,
+        required:row.querySelector('[data-question-required]').checked,
+        options:['select','multiselect'].includes(type) ? optionValues(row) : [],
+        correct:type === 'select' ? row.querySelector('[data-question-answer]').value : ''};
+    });
+  }
+  function newKey() {
+    const existing = new Set(Array.from(list.children, row => row.dataset.questionId));
+    if (lastRemoved) existing.add(lastRemoved.row.dataset.questionId);
+    let key; do { key = 'question_' + (++sequence); } while (existing.has(key));
+    return key;
+  }
+  function renderPreview() {
+    if (!preview) return;
+    preview.replaceChildren();
+    questions().forEach((q, index) => {
+      const field = document.createElement('fieldset'); field.className = 'question-preview-field';
+      const legend = document.createElement('legend'); legend.textContent = (index + 1) + '. ' + (q.label || 'Pergunta sem título') + (q.required ? ' *' : ''); field.append(legend);
+      if (['select','multiselect'].includes(q.type)) {
+        q.options.forEach(value => {
+          const label = document.createElement('label'); label.className = 'choice-label';
+          const input = document.createElement('input'); input.type = q.type === 'select' ? 'radio' : 'checkbox'; input.disabled = true;
+          label.append(input, document.createTextNode(value)); field.append(label);
+        });
+        if (!q.options.length) { const note = document.createElement('p'); note.textContent = 'Adicione opções para conferir este formato.'; field.append(note); }
+      } else {
+        const input = document.createElement(q.type === 'textarea' ? 'textarea' : 'input');
+        if (input.tagName === 'INPUT') input.type = ['number','url'].includes(q.type) ? q.type : 'text';
+        input.disabled = true; input.setAttribute('aria-label', q.label || 'Resposta'); if (q.type === 'textarea') input.rows = 3;
+        field.append(input);
+      }
+      preview.append(field);
+    });
+  }
   function syncCount(message) {
-    const count = list.children.length;
+    const rows = Array.from(list.children), count = rows.length;
     status.textContent = message || count + (count === 1 ? ' pergunta no formulário.' : ' perguntas no formulário.');
     add.disabled = count >= 15; save.disabled = count === 0;
+    undo.hidden = !lastRemoved; undo.disabled = count >= 15;
+    rows.forEach((row, index) => {
+      row.querySelector('legend').textContent = 'Pergunta ' + (index + 1);
+      row.querySelector('[data-question-up]').disabled = index === 0;
+      row.querySelector('[data-question-down]').disabled = index === count - 1;
+      row.querySelector('[data-question-duplicate]').disabled = count >= 15;
+    });
+    renderPreview();
   }
   function bindQuestion(row) {
-    const type = row.querySelector('[data-question-type]');
-    const options = row.querySelector('[data-question-options]');
-    const optionsLabel = row.querySelector('[data-question-options-label]');
-    const answer = row.querySelector('[data-question-answer]');
-    const answerLabel = row.querySelector('[data-question-answer-label]');
+    const type = row.querySelector('[data-question-type]'), text = row.querySelector('[data-question-label]');
+    const options = row.querySelector('[data-question-options]'), optionsLabel = row.querySelector('[data-question-options-label]');
+    const answer = row.querySelector('[data-question-answer]'), answerLabel = row.querySelector('[data-question-answer-label]');
+    const textCount = document.createElement('span'); textCount.className = 'field-help'; textCount.dataset.questionTextCount = ''; text.after(textCount);
+    const optionsCount = document.createElement('span'); optionsCount.className = 'field-help'; optionsCount.dataset.questionOptionsCount = ''; options.after(optionsCount);
     function refreshAnswer() {
       const selected = answer.value || answer.dataset.current || '';
       answer.replaceChildren(new Option('Sem correção automática', ''));
-      options.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean).forEach(value => answer.add(new Option(value, value)));
+      optionValues(row).forEach(value => answer.add(new Option(value, value)));
       if (Array.from(answer.options).some(option => option.value === selected)) answer.value = selected;
       answer.dataset.current = '';
     }
-    function showOptions() { optionsLabel.hidden = !['select','multiselect'].includes(type.value); options.required = !optionsLabel.hidden; answerLabel.hidden = type.value !== 'select'; refreshAnswer(); }
-    options.addEventListener('input', refreshAnswer);
-    type.addEventListener('change', showOptions); showOptions();
-    row.querySelector('[data-question-remove]').addEventListener('click', () => { row.remove(); syncCount('Pergunta removida. Salve para aplicar à próxima versão.'); add.focus(); });
+    function counters() {
+      textCount.textContent = text.value.length + '/200 caracteres';
+      const values = optionValues(row), valid = values.length <= 20 && values.every(value => value.length <= 100) && new Set(values).size === values.length;
+      optionsCount.textContent = values.length + '/20 opções' + (valid ? '' : ' — confira duplicatas e o limite de 100 caracteres por opção.');
+      options.setCustomValidity(!optionsLabel.hidden && !valid ? 'Use até 20 opções diferentes, com até 100 caracteres cada.' : '');
+    }
+    function showOptions() {
+      optionsLabel.hidden = !['select','multiselect'].includes(type.value); options.required = !optionsLabel.hidden;
+      answerLabel.hidden = type.value !== 'select'; refreshAnswer(); counters(); renderPreview();
+    }
+    options.addEventListener('input', () => { refreshAnswer(); counters(); });
+    type.addEventListener('change', showOptions);
+    row.addEventListener('input', () => { counters(); renderPreview(); });
+    row.addEventListener('change', renderPreview);
+    row.querySelector('[data-question-remove]').addEventListener('click', () => { lastRemoved = {row, next:row.nextElementSibling}; row.remove(); syncCount('Pergunta removida. Você pode desfazer a última remoção antes de salvar.'); undo.focus(); });
+    row.querySelector('[data-question-up]').addEventListener('click', event => {
+      const previous = row.previousElementSibling; if (!previous) return;
+      list.insertBefore(row, previous); syncCount('Pergunta movida para cima. Salve para aplicar a nova ordem.'); event.currentTarget.focus();
+    });
+    row.querySelector('[data-question-down]').addEventListener('click', event => {
+      const next = row.nextElementSibling; if (!next) return;
+      list.insertBefore(next, row); syncCount('Pergunta movida para baixo. Salve para aplicar a nova ordem.'); event.currentTarget.focus();
+    });
+    row.querySelector('[data-question-duplicate]').addEventListener('click', () => {
+      if (list.children.length >= 15) return;
+      const copy = form.querySelector('[data-question-template]').content.firstElementChild.cloneNode(true);
+      copy.dataset.questionId = newKey();
+      for (const selector of ['[data-question-label]','[data-question-type]','[data-question-options]']) copy.querySelector(selector).value = row.querySelector(selector).value;
+      copy.querySelector('[data-question-required]').checked = row.querySelector('[data-question-required]').checked;
+      copy.querySelector('[data-question-answer]').dataset.current = answer.value;
+      row.after(copy); bindQuestion(copy); syncCount('Pergunta duplicada com novo identificador. Revise antes de salvar.'); copy.querySelector('[data-question-label]').focus();
+    });
+    showOptions();
   }
   Array.from(list.children).forEach(bindQuestion); add.hidden = false; syncCount();
+  undo.addEventListener('click', () => {
+    if (!lastRemoved || submitting || list.children.length >= 15) return;
+    const {row, next} = lastRemoved;
+    if (next && next.parentElement === list) list.insertBefore(row, next); else list.append(row);
+    lastRemoved = null; syncCount('Pergunta restaurada com suas opções e gabarito.'); row.querySelector('[data-question-label]').focus();
+  });
+  const initialState = JSON.stringify(questions());
+  window.addEventListener('beforeunload', event => {
+    if (!submitting && JSON.stringify(questions()) !== initialState) { event.preventDefault(); event.returnValue = ''; }
+  });
   add.addEventListener('click', () => {
     if (list.children.length >= 15) return;
     const row = form.querySelector('[data-question-template]').content.firstElementChild.cloneNode(true);
-    const existing = new Set(Array.from(list.children, item => item.dataset.questionId));
-    let key; do { key = 'question_' + (++sequence); } while (existing.has(key));
-    row.dataset.questionId = key; list.append(row); bindQuestion(row);
+    row.dataset.questionId = newKey(); list.append(row); bindQuestion(row);
     row.querySelector('[data-question-label]').focus(); syncCount('Pergunta adicionada. Preencha o texto e escolha o formato.');
   });
   form.addEventListener('submit', event => {
-    const questions = Array.from(list.children, row => {
-      const type = row.querySelector('[data-question-type]').value;
-      return {id:row.dataset.questionId, label:row.querySelector('[data-question-label]').value.trim(), type, required:row.querySelector('[data-question-required]').checked,
-        options:['select','multiselect'].includes(type) ? row.querySelector('[data-question-options]').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean) : []};
-    });
-    if (!questions.length || questions.some(question => question.options.length > 20 || question.options.some(option => option.length > 100) || new Set(question.options).size !== question.options.length)) {
+    const items = questions();
+    if (!items.length || items.some(q => q.options.length > 20 || q.options.some(option => option.length > 100) || new Set(q.options).size !== q.options.length)) {
       event.preventDefault(); status.textContent = 'Confira as opções: no máximo 20 opções únicas, com até 100 caracteres cada.'; status.focus(); return;
     }
     form.querySelectorAll('[data-question-serialized]').forEach(input => input.remove());
     function hidden(name, value) { const input = document.createElement('input'); input.type = 'hidden'; input.name = name; input.value = value; input.dataset.questionSerialized = ''; form.append(input); }
-    hidden('question_count', questions.length);
-    questions.forEach((question, index) => {
+    hidden('question_count', items.length);
+    items.forEach((q, index) => {
       const prefix = 'question_' + index + '_';
-      hidden(prefix + 'id', question.id); hidden(prefix + 'label', question.label); hidden(prefix + 'type', question.type); hidden(prefix + 'required', question.required ? '1' : '0');
-      const row = list.children[index]; hidden(prefix + 'correct', question.type === 'select' ? row.querySelector('[data-question-answer]').value : '');
-      question.options.forEach(option => hidden(prefix + 'option', option));
+      hidden(prefix + 'id', q.id); hidden(prefix + 'label', q.label); hidden(prefix + 'type', q.type); hidden(prefix + 'required', q.required ? '1' : '0'); hidden(prefix + 'correct', q.correct);
+      q.options.forEach(option => hidden(prefix + 'option', option));
     });
+    queueMicrotask(() => { if (!event.defaultPrevented) { submitting = true; lastRemoved = null; undo.hidden = true; } });
   });
 });

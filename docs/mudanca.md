@@ -1,3 +1,7 @@
+## Evolução de usabilidade
+
+23 melhorias concluídas e verificadas; consulte [EVOLUCAO-23-MELHORIAS.md](EVOLUCAO-23-MELHORIAS.md) para a lista numerada e evidências desta etapa. Nenhuma mudança de tecnologia ou exclusão de dados.
+
 # Atualização para apresentação
 
 Consulte ENTREGA-APRESENTACAO.md para as evidências desta versão; o conteúdo abaixo registra etapas anteriores.

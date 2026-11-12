@@ -28,6 +28,7 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
   await mp.getByRole('button',{name:'Entrar na plataforma'}).click();await mp.waitForURL('**/admin');
   await go(mp,'/jobs');await mp.locator('summary').filter({hasText:'Cadastrar oportunidade'}).click();
   await mp.locator('[name=title]').fill(title);await mp.locator('[name=company]').fill('Empresa fictícia de QA');
+  await mp.locator('[name=side]').selectOption('Blue Team');
   await mp.locator('textarea[name=description]').fill('Vaga sintética para validar inscrição, revisão e feedback sem dados reais.');
   await mp.getByRole('button',{name:'Publicar oportunidade'}).click();await mp.waitForURL('**/jobs');
   await go(mp,'/opportunities');const card=mp.locator('article').filter({has:mp.getByRole('heading',{name:title,exact:true})});
@@ -139,6 +140,38 @@ async function check(name,fn){try{await fn();results.push({name,status:'APROVADO
  await check('R10 Formulários de SOC e AppSec usam perguntas distintas',async()=>{
   await go(cp,`/applications/${demoIds[0]}/form`);await cp.getByLabel('Experiência com investigação de logs e alertas',{exact:false}).waitFor();
   await go(cp,`/applications/${demoIds[1]}/form`);await cp.getByLabel('Experiência com revisão de código e aplicações',{exact:false}).waitFor();
+ });
+ await check('R16 Filtros de vagas combinam busca e área com estado vazio',async()=>{
+  await go(cp,'/opportunities');
+  await cp.getByRole('searchbox',{name:'Buscar vaga ou empresa'}).fill(title);
+  await cp.getByRole('combobox',{name:'Área de atuação'}).selectOption('Blue Team');
+  await cp.getByRole('button',{name:'Encontrar vagas'}).click();
+  assert.equal(await cp.locator('article').count(),1);
+  await cp.getByRole('searchbox',{name:'Buscar vaga ou empresa'}).fill('SEM-RESULTADO-QA-'+stamp);
+  await cp.getByRole('button',{name:'Encontrar vagas'}).click();
+  await cp.getByRole('heading',{name:'Nenhuma vaga corresponde aos filtros'}).waitFor();
+ });
+ await check('R17 Candidato filtra sua etapa e consulta extrato privado imprimível',async()=>{
+  await go(cp,'/my-applications');
+  await cp.getByRole('combobox',{name:'Filtrar minhas candidaturas por etapa'}).selectOption('interview');
+  await cp.getByRole('button',{name:'Aplicar filtro'}).click();
+  const card=cp.locator('article').filter({has:cp.getByRole('heading',{name:title,exact:true})});
+  await card.getByRole('link',{name:/Consultar minhas respostas/}).click();
+  await cp.getByRole('heading',{name:'Minhas respostas',exact:true}).waitFor();
+  const body=await cp.locator('body').textContent();
+  assert.ok(!body.includes('QA-NOTA-INTERNA-RESTRITA-')&&!body.includes('QA-RUBRICA-INTERNA')&&!body.includes('Gabarito:'));
+  for(const width of [390,1440]){await cp.setViewportSize({width,height:1000});assert.ok(await cp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
+  await cp.emulateMedia({media:'print'});assert.equal(await cp.locator('.topbar').isVisible(),false);await cp.emulateMedia({media:'screen'});
+ });
+ await check('R18 Laboratórios distinguem ambientes e busca funciona no celular',async()=>{
+  await go(cp,'/labs');
+  await cp.getByRole('heading',{name:'Seu espaço de investigação'}).waitFor();
+  const search=cp.getByRole('searchbox',{name:'Buscar laboratório'});
+  await search.fill('investigação');
+  assert.equal(await cp.locator('.laboratory-card:visible').count(),1);
+  await search.fill('SEM-LABORATORIO-QA');assert.equal(await cp.locator('.laboratory-card:visible').count(),0);
+  await search.fill('');
+  for(const width of [390,1440]){await cp.setViewportSize({width,height:1000});assert.ok(await cp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
  });
  await check('R15 Candidato confirma desistência e equipe acompanha o estado',async()=>{
   await go(cp,'/my-applications');

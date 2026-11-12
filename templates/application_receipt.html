@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% from '_recruitment.html' import status,answer_list with context %}
+{% block title %}Minhas respostas · {{ application.job_title }}{% endblock %}
+{% block content %}
+<a class="back" href="/my-applications">Voltar às minhas candidaturas</a>
+<section class="page-heading"><h1>Minhas respostas</h1><p>{{ application.job_title }} · {{ application.company }}</p>{{ status(application.status) }}</section>
+<section class="card candidate-receipt"><h2>Registro da candidatura {{ application.id }}</h2><p>Iniciada em {{ application.created_label }} · horário de Brasília.</p>{% if application.submitted_at %}<p>Enviada em {{ application.submitted_label }} · horário de Brasília.</p>{% else %}<p class="notice">Este formulário é um rascunho e ainda não foi enviado à seleção.</p>{% endif %}<p class="field-help">Este registro contém as respostas da versão que você preencheu. Você também pode usar Ctrl+P ou a opção Imprimir do navegador.</p><button type="button" data-print>Imprimir extrato</button>
+{{ answer_list(questions,answers) }}
+{% if application.feedback %}<h2>Feedback compartilhado pela equipe</h2><p class="pre">{{ application.feedback }}</p>{% endif %}
+{% if history %}<h2>Histórico da candidatura</h2><ol>{% for event in history %}<li>{{ recruitment_statuses.get(event.status,event.status) }} · {{ event.date }} · Brasília</li>{% endfor %}</ol>{% endif %}
+<p class="field-help">Este extrato não é uma confirmação de aprovação ou contratação.</p></section>
+{% endblock %}

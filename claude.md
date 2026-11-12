@@ -1,5 +1,11 @@
 # Purple Talent — contexto e continuidade do projeto
 
+## Evolução de usabilidade após a entrega de apresentação
+
+Foram integradas 23 melhorias, detalhadas em docs/EVOLUCAO-23-MELHORIAS.md: editor com duplicação, reordenação, desfazer, prévia, contadores e aviso ao sair; filtros de vagas/candidaturas, datas, histórico, progresso, prazo e extrato privado imprimível; laboratórios com descrições corretas, estado individual, quota, validade, ações, conclusão e busca. Novos estilos locais são incluídos em templates/base.html. Nenhuma dependência nova foi adicionada. O extrato exige papel participante e ownership, preserva form_version e não lê notes ou answer_keys. O backend dos laboratórios não consulta Docker para construir a lista: apresenta somente registros próprios válidos e explica que a disponibilidade é confirmada no desafio.
+
+Os 18 cenários integrados no Chrome, dez testes novos de backend e a verificação visual independente passaram. A suíte integral anterior não foi reexecutada nesta evolução; ver comandos, limites e evidências no documento específico. Publicar somente em Breno-J-Oliveira/salvamento.
+
 ## Entrega para apresentação em 12 de novembro de 2026
 
 Esta seção prevalece sobre os estados históricos abaixo. O usuário autorizou finalizar a demonstração, melhorar segurança e UX e publicar no repositório **Breno-J-Oliveira/salvamento**. Não publicar em purple-talent. A stack permanece Flask, SQLite, HTML/Jinja, CSS/JS e Docker CLI local.

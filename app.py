@@ -230,7 +230,14 @@ def index():
 @app.route('/labs')
 @login_required
 def laboratory():
-    return render_template('laboratory.html', items=db().execute('SELECT * FROM challenges WHERE image IS NOT NULL').fetchall())
+    d=db(); now=int(time.time()); uid=session.get('user_id')
+    items=[dict(r) for r in d.execute("SELECT * FROM challenges WHERE image IS NOT NULL ORDER BY CASE WHEN image='cti-lab/incident-01' THEN 0 ELSE 1 END,id")]
+    instances={};solved=set();own_instances=[]
+    if uid:
+        own_instances=d.execute('SELECT * FROM instances WHERE user_id=? AND active=1 AND expires_at>=? ORDER BY started_at',(uid,now)).fetchall()
+        instances={r['challenge_id']:dict(r) for r in own_instances}
+        solved={r[0] for r in d.execute('SELECT DISTINCT challenge_id FROM attempts WHERE user_id=? AND correct=1',(uid,))}
+    return render_template('laboratory.html',items=items,instances=instances,solved=solved,now=now,max_per_user=MAX_PER_USER,active_count=len(own_instances))
 
 
 @app.route('/blog')
