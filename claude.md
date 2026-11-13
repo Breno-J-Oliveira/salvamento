@@ -1,3 +1,9 @@
+# Entrega local com rotação de VMs — 13/11/2026
+
+O caminho de apresentação é a aplicação Flask no loopback 5000 com a ponte TLS 8443 e o runtime QEMU em D:/purple-talent-runtime. A VM principal foi preservada, e um operador foi iniciado com --count 1 para preparar uma nova máquina após ela encerrar. Após reiniciar o PC, confira a disponibilidade e siga [a operação da rodada](docs/LABORATORIOS-REMOTOS.md#rodada-local-de-candidatos).
+
+O operador espera máquinas existentes terminarem e cria uma VM por vez, com limites de quantidade, perda de contato e espaço. O candidato pode retomar a sessão pelo painel. No QA em banco DEMO separado, dois candidatos usaram VMs distintas no Chrome. A segunda recebeu um disco limpo, o diário da primeira permaneceu privado, e ambas terminaram com histórico preservado. A bateria de rotação, supervisor, ponte e sessões passou em 43/43 casos. A primeira reserva ocorreu em 4 min 23 s, e a segunda ficou disponível 4 min 39 s após o fim da primeira. Inicie a VM antes da apresentação. Sem pool simultâneo ou hospedagem externa validada.
+
 # RETOMADA VERIFICADA NESTE COMPUTADOR — 12/11/2026
 
 Esta seção prevalece sobre a parada e os registros das máquinas anteriores abaixo. O usuário pediu baixar a versão nova e continuar conforme o contexto. Foi baixado main de Breno-J-Oliveira/salvamento em123e10d; checkout atual C:/xampp/htdocs/PORTIFOLIO/projetos/desafio-de-ideias, branch codex/resume-linux-vm-20261112. A versão anterior foi preservada em codex/continue-salvamento e o banco recebeu backup verificado em diretório privado no D:. Não usar purple-talent.

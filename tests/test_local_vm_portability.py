@@ -175,6 +175,26 @@ class LocalVMPortabilityTests(unittest.TestCase):
         process.kill.assert_called_once()
         self.assertEqual(self.rows(), [(1, 'retired')])
 
+    def test_rotation_stops_on_unexpected_guest_exit(self):
+        _, metadata = self.prepared()
+        process = Mock(pid=123)
+        process.poll.return_value = 1
+        with patch.object(supervisor.subprocess, 'Popen', return_value=process) as launch, patch.object(supervisor.shutil, 'disk_usage', return_value=SimpleNamespace(free=4*1024**3)):
+            with self.assertRaisesRegex(RuntimeError, 'antes do encerramento'):
+                supervisor.run(metadata, self.runtime, bridge_port=8458, monitor_agent=True)
+        self.assertIn('guestfwd=tcp:10.0.2.100:8443-tcp:127.0.0.1:8458', next(value for value in launch.call_args.args[0] if value.startswith('user,id=')))
+        self.assertEqual(self.rows(), [(1, 'retired')])
+
+    def test_rotation_stops_on_first_poll_timeout(self):
+        _, metadata = self.prepared()
+        process = Mock(pid=123)
+        process.poll.return_value = None
+        with patch.object(supervisor.subprocess, 'Popen', return_value=process), patch.object(supervisor.shutil, 'disk_usage', return_value=SimpleNamespace(free=4*1024**3)), patch.object(supervisor.time, 'monotonic', side_effect=[0, 901]):
+            with self.assertRaisesRegex(RuntimeError, '15 minutos'):
+                supervisor.run(metadata, self.runtime, monitor_agent=True)
+        process.terminate.assert_called_once()
+        self.assertEqual(self.rows(), [(1, 'retired')])
+
 
 if __name__ == '__main__':
     unittest.main()

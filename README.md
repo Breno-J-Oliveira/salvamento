@@ -1,8 +1,6 @@
-Retomada verificada da VM nesta máquina: [estado, testes e operação](docs/RETOMADA-VERIFICADA-20261112.md). O runtime pode ficar em outro disco com --runtime; aplicação principal em http://127.0.0.1:5000 e laboratório acompanhado em /remote-labs.
-
-Laboratórios acompanhados sem Docker estão em `/remote-labs`. A primeira integração reserva uma VM Linux previamente preparada e conecta um terminal por comando ao painel do mentor. Preparação do servidor Windows/SENAI, operação e limitações em [Laboratórios remotos](docs/LABORATORIOS-REMOTOS.md). A criação automática pelo VirtualBox segue planejada no início do `claude.md`.
-
 # Purple Talent
+
+A equipe de seleção publica vagas, recebe candidaturas e acompanha investigações em uma VM Linux descartável. O laboratório fica em `/remote-labs`. Para atender candidatos em sequência no mesmo computador, o operador pode deixar uma rodada de VMs preparada para iniciar uma por vez. [Operação dos laboratórios](docs/LABORATORIOS-REMOTOS.md#rodada-local-de-candidatos)
 
 Novos sistemas internos: a mentoria cria desafios em `/admin/challenges`, prepara/atribui avaliações de funcionários em `/admin/assessments` e verifica disponibilidade em `/admin/laboratory-status`. A pessoa avaliada acessa `/my-assessments`. [Entrega, funcionamento e limites](docs/ENTREGA-SISTEMAS-INTERNOS.md). A landing e autenticação agora usam elementos HTML/CSS no lugar das artes geradas.
 

@@ -4,6 +4,7 @@ __pycache__/
 *.py[cod]
 lab.db
 lab.db-*
+*.db.rotation.lock
 .secret_key
 .session-key
 .runtime/

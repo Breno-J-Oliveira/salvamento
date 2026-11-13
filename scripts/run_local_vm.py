@@ -25,7 +25,9 @@ def retire(database, machine_id):
         con.execute("UPDATE remote_machines SET status='retired' WHERE id=?", (machine_id,))
 
 
-def run(metadata, runtime=None):
+def run(metadata, runtime=None, *, bridge_port=8443, monitor_agent=False):
+    if type(bridge_port) is not int or not 1 <= bridge_port <= 65535:
+        raise ValueError('Invalid loopback bridge port.')
     item = json.loads(Path(metadata).read_text(encoding='utf-8-sig'))
     runtime = Path(runtime if runtime is not None else ROOT/'.runtime/local-vm').resolve(strict=True)
     folder = Path(item['folder']).resolve()
@@ -63,7 +65,7 @@ def run(metadata, runtime=None):
         '-drive','file='+option(folder/'disk.qcow2')+',if=virtio,format=qcow2,throttling.bps-write=10485760',
         '-drive','file='+option(folder/'seed.iso')+',if=virtio,format=raw,readonly=on',
         '-smbios','type=1,serial=ds=nocloud',
-        '-netdev','user,id=lab,restrict=on,ipv6=off,guestfwd=tcp:10.0.2.100:8443-tcp:127.0.0.1:8443,,reconnect-ms=500',
+        '-netdev',f'user,id=lab,restrict=on,ipv6=off,guestfwd=tcp:10.0.2.100:8443-tcp:127.0.0.1:{bridge_port},,reconnect-ms=500',
         '-device','virtio-net-pci,netdev=lab','-no-reboot']
     process = None
     try:
@@ -74,16 +76,27 @@ def run(metadata, runtime=None):
                 stderr=errors,creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
             (folder/'process.json').write_text(json.dumps({'pid':process.pid}))
             print('Linux VM started. Machine '+str(machine_id),flush=True)
+            boot_deadline = time.monotonic() + 900
             while process.poll() is None:
                 if shutil.disk_usage(runtime).free < 1200*1024**2:
                     print('VM stopped to preserve Windows disk space.',flush=True)
                     break
                 with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as con:
-                    row = con.execute('SELECT status FROM remote_machines WHERE id=?',(machine_id,)).fetchone()
+                    row = con.execute('SELECT status,last_seen FROM remote_machines WHERE id=?',(machine_id,)).fetchone()
                 if not row or row[0]=='retired':
                     print('Session ended. VM stopped; prepare a fresh VM for the next participant.',flush=True)
                     break
+                if monitor_agent:
+                    if row[1] is None and time.monotonic() >= boot_deadline:
+                        raise RuntimeError('A VM não se conectou ao banco esperado em 15 minutos.')
+                    if row[1] is not None and time.time() - row[1] > 180:
+                        raise RuntimeError('A VM perdeu contato por mais de 3 minutos.')
                 time.sleep(3)
+            if monitor_agent:
+                with closing(sqlite3.connect(database.as_uri()+'?mode=ro', uri=True)) as con:
+                    state = con.execute('SELECT status FROM remote_machines WHERE id=?', (machine_id,)).fetchone()
+                if state != ('retired',):
+                    raise RuntimeError('O supervisor perdeu a VM antes do encerramento da sessão.')
     finally:
         try:
             if process is not None:

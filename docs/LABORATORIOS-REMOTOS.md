@@ -1,8 +1,24 @@
 > Ensaio integrado e correções mais recentes: [RETOMADA-VERIFICADA-20261112.md](RETOMADA-VERIFICADA-20261112.md). As anotações abaixo preservam o histórico e os limites da primeira integração.
 
+## Rodada local de candidatos
+
+Neste computador, o runtime privado está em `D:/purple-talent-runtime`. Para abrir uma rodada depois de ligar o PC, execute cada comando em um terminal PowerShell na raiz do projeto. Se a aplicação ou a ponte já estiverem rodando com este banco, aproveite os processos existentes.
+
+```powershell
+.\scripts\run_local.ps1 -Port 5000
+.\.venv\Scripts\python.exe scripts/lab_tls_bridge.py --cert-file D:/purple-talent-runtime/bridge.crt --key-file D:/purple-talent-runtime/bridge.key --app-port 5000
+.\.venv\Scripts\python.exe scripts/rotate_local_vm.py --database lab.db --runtime D:/purple-talent-runtime --count 2
+```
+
+O último comando agenda **duas VMs novas**, uma por vez. Se já houver uma máquina disponível ou ocupada, ele aguarda o encerramento antes de criar a primeira da rodada. Cada nova máquina recebe disco, credencial e cadastro próprios. O candidato entra em `/remote-labs`, atualiza a disponibilidade e inicia a sessão. Pode sair da página e usar **Retomar investigação** até o término do prazo. A próxima VM leva alguns minutos para iniciar. Mantenha os três processos abertos durante a rodada.
+
+O operador para ao atingir a quantidade pedida ou ao identificar falha. Uma segunda execução para o mesmo banco é recusada. Para uma VM da rodada, 15 minutos sem primeiro contato ou três minutos sem contato após a conexão interrompem a operação. Se uma máquina preexistente ficar sem contato, inspecione seu supervisor antes de abrir outra rodada. Os artefatos privados permanecem no disco para a equipe aplicar sua política de retenção.
+
+Para um ensaio paralelo use outro banco DEMO, outra porta da aplicação e outra porta da ponte. Configure a ponte com `--port` e `--app-port`, e passe a mesma porta da ponte ao operador com `--bridge-port`. O agente dentro do convidado continua usando o endereço privado e o certificado do runtime.
+
 ## Caminho local com QEMU portátil
 
-O PC atual usa QEMU portátil e Ubuntu24.04 mínimo em arquivos privados de `.runtime/local-vm`. A imagem foi obtida da Canonical e o pacote Windows da fonte indicada pelo projeto QEMU. Ambos foram conferidos contra os hashes publicados. O Windows deste PC não disponibilizou aceleração WHPX, então o boot usa emulação TCG e pode levar vários minutos.
+O runtime usa QEMU portátil e Ubuntu 24.04 mínimo. Os exemplos de preparação manual abaixo usam o diretório padrão `.runtime/local-vm`. A imagem foi obtida da Canonical e o pacote Windows da fonte indicada pelo projeto QEMU. Ambos foram conferidos contra os hashes publicados. A configuração atual usa emulação TCG e o boot pode levar vários minutos.
 
 Com os assets verificados já preparados neste PC, use o Python da `.venv` para iniciar `scripts/lab_tls_bridge.py --cert-file .runtime/local-vm/bridge.crt --key-file .runtime/local-vm/bridge.key --app-port 5000`. Em seguida execute `scripts/prepare_local_vm.py --database lab.db`, salve o JSON retornado em um arquivo privado e passe esse arquivo para `scripts/run_local_vm.py --metadata CAMINHO-DO-JSON`. O arquivo JSON contém caminhos e ID, sem o token. Para demonstrar com a base fictícia, use o banco de demonstração e a ponte com app-port5057.
 

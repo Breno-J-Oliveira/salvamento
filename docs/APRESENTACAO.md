@@ -1,5 +1,9 @@
 # Roteiro de demonstração — Purple Talent
 
+## Antes de apresentar o laboratório acompanhado
+
+Inicie a primeira VM com antecedência e confira a indicação de ambiente conectado em `/remote-labs`. Para demonstrar a seleção, abra dois perfis de navegador, um de candidato e outro de mentor. O candidato pode sair da página e usar **Retomar investigação**; o mentor acompanha a mesma sessão na sua conta. Encerre a investigação quando terminar de mostrar os resultados. Se outro candidato for participar, deixe a rodada local em execução e aguarde o próximo ambiente aparecer. [Comandos da rodada](LABORATORIOS-REMOTOS.md#rodada-local-de-candidatos)
+
 ## Preparação e versão correta
 
 Na pasta da versão escolhida, execute no PowerShell:

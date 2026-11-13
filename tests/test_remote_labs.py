@@ -116,6 +116,28 @@ class RemoteLabsTests(unittest.TestCase):
         self.assertEqual(self.command(sid).status_code, 403)
         self.assertEqual(self.post(f'/remote-labs/{sid}/end').status_code, 403)
 
+    def test_participant_resumes_active_session_and_keeps_completed_history(self):
+        first = self.start()
+        self.assertEqual(self.post(f'/remote-labs/{first}/end').status_code, 302)
+        active = self.start()
+        page = self.client.get('/remote-labs').get_data(as_text=True)
+        self.assertIn(f'href="/remote-labs/{active}">Retomar investigação', page)
+        self.assertIn(f'href="/remote-labs/{first}">Ver histórico', page)
+        self.assertNotIn('action="/remote-labs/start"', page)
+        self.assertNotIn('Nenhum ambiente conectado disponível agora', page)
+        self.assertEqual(self.client.get(f'/remote-labs/{active}').status_code, 200)
+
+        self.as_user(3)
+        other_page = self.client.get('/remote-labs').get_data(as_text=True)
+        self.assertNotIn('Retomar investigação', other_page)
+        self.assertIn('name="consent"', other_page)
+        self.assertEqual(self.client.get(f'/remote-labs/{active}').status_code, 403)
+
+        self.as_user(1)
+        observer_page = self.client.get('/remote-labs').get_data(as_text=True)
+        self.assertIn(f'href="/remote-labs/{active}">Acompanhar', observer_page)
+        self.assertNotIn('Retomar investigação', observer_page)
+
     def test_start_dedup_capacity_and_consent(self):
         self.assertEqual(self.post('/remote-labs/start').status_code, 400)
         sid = self.start()
