@@ -3,7 +3,9 @@ import argparse
 import base64
 import io
 import json
+from contextlib import closing
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import uuid
@@ -15,11 +17,33 @@ from scripts.register_lab_machine import register
 
 def prepare(runtime, database, name):
     runtime = Path(runtime).resolve()
+    database = Path(database)
+    if database.is_symlink():
+        raise ValueError('The database must be a regular file, not a symbolic link.')
+    database = database.resolve(strict=True)
+    required = [runtime/'qemu/qemu-img.exe', runtime/'qemu/qemu-system-x86_64.exe',
+                runtime/'ubuntu-base.img', runtime/'bridge.crt', ROOT/'scripts/lab_agent.py']
+    if not database.is_file() or any(not path.is_file() or path.stat().st_size == 0 for path in required):
+        raise ValueError('Prepare the runtime assets and an existing database before registering a VM.')
     sys.path.insert(0, str(runtime / 'tools/lib'))
     import pycdlib
     folder = runtime / ('session-' + uuid.uuid4().hex)
     folder.mkdir()
+    # Verify that the overlay can be created before issuing an executor credential.
+    # On failure the new folder remains available for operator diagnostics.
+    subprocess.run([str(runtime/'qemu/qemu-img.exe'),'create','-f','qcow2','-F','qcow2',
+                    '-b',str(runtime/'ubuntu-base.img'),str(folder/'disk.qcow2')],
+                   check=True,stdout=subprocess.DEVNULL,timeout=60)
     machine_id = register(database, name, folder / 'agent.token')
+    try:
+        return write_seed(runtime, database, folder, machine_id, pycdlib)
+    except BaseException:
+        with closing(sqlite3.connect(database, timeout=10)) as con, con:
+            con.execute("UPDATE remote_machines SET status='retired' WHERE id=?", (machine_id,))
+        raise
+
+
+def write_seed(runtime, database, folder, machine_id, pycdlib):
     token = (folder / 'agent.token').read_text().strip()
 
     def entry(path, content, mode='0600'):
@@ -70,9 +94,6 @@ WantedBy=multi-user.target
                    rr_name=filename,joliet_path='/'+filename)
     iso.write(str(folder/'seed.iso'))
     iso.close()
-    subprocess.run([str(runtime/'qemu/qemu-img.exe'),'create','-f','qcow2','-F','qcow2',
-                    '-b',str(runtime/'ubuntu-base.img'),str(folder/'disk.qcow2')],
-                   check=True,stdout=subprocess.DEVNULL)
     metadata = dict(folder=str(folder),machine_id=machine_id,database=str(Path(database).resolve()))
     (folder/'machine.json').write_text(json.dumps(metadata))
     return metadata

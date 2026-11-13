@@ -70,7 +70,7 @@ async function login(page, mentor = false) {
     assert.equal(await menu.getAttribute('aria-expanded'), 'true');
     await p.locator('#site-navigation').getByRole('link', { name: 'Criar perfil', exact: true }).waitFor();
     await p.getByText('Aprender', { exact: true }).click();
-    await p.getByRole('link', { name: 'Laboratório', exact: true }).waitFor();
+    await p.getByRole('link', { name: 'Laboratório acompanhado', exact: true }).waitFor();
     await p.keyboard.press('Escape');
     assert.equal(await menu.getAttribute('aria-expanded'), 'false');
     assert.equal(await menu.evaluate(el => document.activeElement === el), true);

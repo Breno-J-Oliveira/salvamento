@@ -1,3 +1,5 @@
+> Atualização de portabilidade e verificação neste host: [RETOMADA-VERIFICADA-20261112.md](RETOMADA-VERIFICADA-20261112.md). O supervisor também aceita --runtime para um disco dedicado.
+
 # Retomada em outro computador
 
 Estado salvo em12/11/2026 após pedido de parada. Leia primeiro o início de claude.md para resultados e pendências exatas.

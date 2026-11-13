@@ -1,3 +1,32 @@
+# RETOMADA VERIFICADA NESTE COMPUTADOR — 12/11/2026
+
+Esta seção prevalece sobre a parada e os registros das máquinas anteriores abaixo. O usuário pediu baixar a versão nova e continuar conforme o contexto. Foi baixado main de Breno-J-Oliveira/salvamento em123e10d; checkout atual C:/xampp/htdocs/PORTIFOLIO/projetos/desafio-de-ideias, branch codex/resume-linux-vm-20261112. A versão anterior foi preservada em codex/continue-salvamento e o banco recebeu backup verificado em diretório privado no D:. Não usar purple-talent.
+
+## Resultado funcional
+
+- Runtime QEMU/Ubuntu preparado no D:/purple-talent-runtime, privado ao operador e SYSTEM; hashes conferidos com fontes oficiais e registrados sem segredos em docs/RUNTIME-VERIFICADO.json. Sem instalar drivers ou alterar BIOS. Emulação TCG com VM de1GB/2vCPUs; boot pode levar minutos. Docker não é necessário ao caminho remoto.
+- Ensaio no DEMO5057:9/9 cenários reais no Chrome passaram, incluindo usuárioLinux1100/grupo privado/QEMU, arquivos daVM, token/cloud-init inacessíveis, host/internet bloqueados, limpeza de filhossetsid e acompanhamento privado do mentor. Os2LinuxExecutionTests rodaram dentro daVM com0erros,0falhas,0skips. A sessãoDEMO foi encerrada, executor aposentado e VM desligada.
+- PRINCIPAL5000 agora tem executor limpo conectado, statusavailable e heartbeat recente, sem sessões consumidas no principal. A ponte8443 está apontada para5000, e o supervisor mantém esta novaVM aberta. Participante pode usar /remote-labs. Não presumir processos vivos depois de reiniciar/fechar o aplicativo; verificar antes de retomar. Máquina aposentada nunca deve ser reutilizada.
+
+## Correções desta retomada
+
+- run_local.ps1 funciona no WindowsPowerShell5: removida dependência de aspas internas no python-c; scripts/verify_demo.py valida marcador em leitura sem tocar base real. Script salvo com BOM para strings legíveis no WindowsPowerShell.
+- supervisor aceita --runtime em disco dedicado; preflight evita cadastro antes dos assets/overlay, falhas aposentam o cadastro, reserva exclusiva impede segundo supervisor do mesmo metadata, e encerramento usa kill se terminate exceder o prazo.
+- ponteTLS faz handshake em worker limitado e descarta apenas corpos pequenos de rejeições com limite de tamanho/tempo; cliente lento não bloqueia todos os agentes.
+- IDs gigantes na URL retornam404 antes de converter para inteiroSQLite. O teste de menu foi atualizado para Laboratório acompanhado, que é o texto da interface atual.
+
+## Testes e evidências
+
+240 casos Python atuais reconciliados:235 aprovados no Windows,2 em Linux real e3 condicionais Dockerlegado não executados. A primeira execução mostrou reset da ponte e timeout da demo sob carga; ponte corrigida12/12, demo repetida4/4. Não descrever os resultados como uma única execução sem falhas. Novos testes de portabilidade11/11, validação demo3/3 e IDs1/1 passaram. Navegador:15apresentação+18recrutamento+10vagas+10sistemasinternos+7protocoloremotosintético+9VMreal=69cenários aprovados. Compilação, pipcheck e diffcheck aprovados. Evidências sintéticas em D:/purple-talent-qa, fora do Git. Nenhum token, chave, seed ou overlay é publicado.
+
+## Operação e próximo marco
+
+Documentação atual docs/RETOMADA-VERIFICADA-20261112.md. Os processos necessários são aplicação5000, scripts/lab_tls_bridge.py --app-port5000 e scripts/run_local_vm.py --runtime D:/purple-talent-runtime --metadata ARQUIVO-PRIVADO. O runtime não vem no clone; preparar novos certificados/tokens quando mudar de host. A baseDEMO5057 permanece separada. O caminho da máquina anterior Desktop/.runtime/salvamento-atual é histórico e não deve ser usado aqui.
+
+Próximo trabalho: criação/recriação operacional controlada, depois eventual integração de pool pelo site e hospedagemHTTPS. Criação automática pelo site, múltiplos executores, terminalPTY, retenção e exposição externa ainda não estão concluídos. Não prometer invulnerabilidade ou homologação empresarial. Publicar somente no salvamento e preservar dados existentes.
+
+---
+
 # PARADA SOLICITADA — retomada em outra máquina, 12/11/2026
 
 Leia esta seção primeiro. O usuário pediu parar tudo para desligar o PC e continuar em outra máquina. Desenvolvimento interrompido após o teste real da VM. Aplicação5000, demonstração5057, ponte8443 e browser de QA foram encerrados. A VM já havia sido desligada pelo supervisor após encerrar a sessão de teste. Nenhuma VM deve ser presumida em execução ao retomar.

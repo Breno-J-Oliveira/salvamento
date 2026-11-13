@@ -1,3 +1,5 @@
+Retomada verificada da VM nesta máquina: [estado, testes e operação](docs/RETOMADA-VERIFICADA-20261112.md). O runtime pode ficar em outro disco com --runtime; aplicação principal em http://127.0.0.1:5000 e laboratório acompanhado em /remote-labs.
+
 Laboratórios acompanhados sem Docker estão em `/remote-labs`. A primeira integração reserva uma VM Linux previamente preparada e conecta um terminal por comando ao painel do mentor. Preparação do servidor Windows/SENAI, operação e limitações em [Laboratórios remotos](docs/LABORATORIOS-REMOTOS.md). A criação automática pelo VirtualBox segue planejada no início do `claude.md`.
 
 # Purple Talent

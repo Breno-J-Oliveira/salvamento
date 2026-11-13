@@ -183,7 +183,8 @@ class LinuxExecutionTests(unittest.TestCase):
     def test_uid_is_dropped_and_output_is_bounded(self):
         import pwd
         identity = pwd.getpwnam('nobody')
-        with tempfile.TemporaryDirectory() as folder:
+        # PrivateTmp deliberately hides the supervisor's /tmp from the command.
+        with tempfile.TemporaryDirectory(prefix='purple-agent-test-', dir='/srv') as folder:
             os.chown(folder, identity.pw_uid, identity.pw_gid)
             result = lab_agent.execute_job(
                 dict(command_id=1, lease_token='lease', command='id -u; head -c 20000 /dev/zero', timeout=5),
@@ -196,7 +197,7 @@ class LinuxExecutionTests(unittest.TestCase):
     def test_timeout_kills_command_group(self):
         import pwd
         identity = pwd.getpwnam('nobody')
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory(prefix='purple-agent-test-', dir='/srv') as folder:
             os.chown(folder, identity.pw_uid, identity.pw_gid)
             start = lab_agent.time.monotonic()
             result = lab_agent.execute_job(

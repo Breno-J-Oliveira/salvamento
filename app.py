@@ -43,6 +43,10 @@ app.jinja_env.globals["csrf_token"] = csrf_token
 
 @app.before_request
 def protect_request():
+    # SQLite identifiers are signed 64-bit integers; reject oversized route input.
+    if any(isinstance(value,int) and value > 9223372036854775807
+           for value in (request.view_args or {}).values()):
+        abort(404)
     # Local deployment must not accept attacker-controlled DNS names.
     try:
         hostname = urlsplit(request.host_url).hostname

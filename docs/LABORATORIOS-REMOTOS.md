@@ -1,3 +1,5 @@
+> Ensaio integrado e correções mais recentes: [RETOMADA-VERIFICADA-20261112.md](RETOMADA-VERIFICADA-20261112.md). As anotações abaixo preservam o histórico e os limites da primeira integração.
+
 ## Caminho local com QEMU portátil
 
 O PC atual usa QEMU portátil e Ubuntu24.04 mínimo em arquivos privados de `.runtime/local-vm`. A imagem foi obtida da Canonical e o pacote Windows da fonte indicada pelo projeto QEMU. Ambos foram conferidos contra os hashes publicados. O Windows deste PC não disponibilizou aceleração WHPX, então o boot usa emulação TCG e pode levar vários minutos.

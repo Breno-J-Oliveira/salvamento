@@ -5,9 +5,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import re
 import ssl
+import threading
 
 AGENT_PATH = '/api/lab-agent/poll'
 BODY_LIMIT = 65536
+REJECT_DRAIN_LIMIT = 131072
+REJECT_DRAIN_TIMEOUT = 0.25
 ALLOWED_STATUSES = {200, 400, 401, 409, 413, 429, 503}
 
 
@@ -24,6 +27,33 @@ class AgentBridgeHandler(BaseHTTPRequestHandler):
         # Request headers, tokens, commands and results never enter bridge logs.
         pass
 
+    def handle_one_request(self):
+        self.body_read = False
+        return super().handle_one_request()
+
+    def discard_small_body(self):
+        # Closing TCP with an unread body may reset even the error response.
+        # Drain only unambiguous, bounded bodies; never interpret chunked data
+        # or wait the normal ten-second request timeout for a rejected client.
+        headers = getattr(self, 'headers', None)
+        if self.body_read or headers is None or headers.get('Transfer-Encoding') is not None:
+            return
+        lengths = headers.get_all('Content-Length', [])
+        if len(lengths) != 1 or not re.fullmatch(r'[0-9]{1,8}', lengths[0]):
+            return
+        length = int(lengths[0])
+        if not 0 < length <= REJECT_DRAIN_LIMIT:
+            return
+        self.body_read = True
+        previous_timeout = self.connection.gettimeout()
+        try:
+            self.connection.settimeout(REJECT_DRAIN_TIMEOUT)
+            self.rfile.read(length)
+        except (OSError, ValueError):
+            pass
+        finally:
+            self.connection.settimeout(previous_timeout)
+
     def reply(self, status, payload, close=False):
         if close:
             self.close_connection = True
@@ -39,6 +69,8 @@ class AgentBridgeHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
 
     def error_json(self, status, close=True):
+        if close:
+            self.discard_small_body()
         self.reply(status, json.dumps({'error': 'Request could not be completed.'}).encode(), close)
 
     def send_error(self, code, message=None, explain=None):
@@ -69,6 +101,7 @@ class AgentBridgeHandler(BaseHTTPRequestHandler):
             self.error_json(401)
             return
         try:
+            self.body_read = True
             body = self.rfile.read(length)
             if len(body) != length:
                 self.error_json(400)
@@ -109,21 +142,50 @@ class AgentBridgeHandler(BaseHTTPRequestHandler):
 class AgentBridgeServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port, app_port, tls_context=None):
+    def __init__(self, port, app_port, tls_context=None, max_connections=32):
+        if type(max_connections) is not int or not 1 <= max_connections <= 128:
+            raise ValueError('Use a connection limit from 1 to 128.')
         self.app_port = app_port
         self.tls_context = tls_context
+        self.connections = threading.BoundedSemaphore(max_connections)
         super().__init__(('127.0.0.1', port), AgentBridgeHandler)
 
     def get_request(self):
         connection, address = super().get_request()
         connection.settimeout(10)
-        if self.tls_context is None:
-            return connection, address
+        return connection, address
+
+    def process_request(self, connection, address):
+        # Bound stalled TLS/HTTP clients without blocking the accept loop.
+        if not self.connections.acquire(blocking=False):
+            self.shutdown_request(connection)
+            return
         try:
-            return self.tls_context.wrap_socket(connection, server_side=True), address
+            super().process_request(connection, address)
+        except BaseException:
+            self.connections.release()
+            raise
+
+    def process_request_thread(self, connection, address):
+        try:
+            super().process_request_thread(connection, address)
+        finally:
+            self.connections.release()
+
+    def finish_request(self, connection, address):
+        if self.tls_context is None:
+            return super().finish_request(connection, address)
+        # Handshake inside the bounded worker: an incomplete ClientHello cannot
+        # stall polling by every other VM for the whole socket timeout.
+        try:
+            secure = self.tls_context.wrap_socket(connection, server_side=True)
         except OSError:
             connection.close()
-            raise
+            return
+        try:
+            super().finish_request(secure, address)
+        finally:
+            secure.close()
 
     def handle_error(self, request, client_address):
         # A failed socket does not disclose request data or internal traces.

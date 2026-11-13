@@ -1,0 +1,32 @@
+[
+  {
+    "file": "qemu-w64-setup-20260811.exe",
+    "source": "https://qemu.weilnetz.de/w64/qemu-w64-setup-20260811.exe",
+    "algorithm": "sha512",
+    "digest": "5bcf9eed634e8575a37b74f445af41a2fe4106da512d0c30c368301d4c105037fdfab40a5287367a28a957624cddebbc8c07e16c88ab6634f554cdf3d16bf543"
+  },
+  {
+    "file": "ubuntu-base.img",
+    "source": "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64.img",
+    "algorithm": "sha256",
+    "digest": "406630c08b5e545fcc7209854b129d47e3af822db128c9f19336593b5a2d3fe0"
+  },
+  {
+    "file": "7zr.exe",
+    "source": "https://github.com/ip7z/7zip/releases/download/26.06/7zr.exe",
+    "algorithm": "sha256",
+    "digest": "e80db2dad715a6c5adabe292d31ed54e11f4e9b99ca349827b50573b175891bc"
+  },
+  {
+    "file": "7z2606-x64.exe",
+    "source": "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-x64.exe",
+    "algorithm": "sha256",
+    "digest": "9b697f65ecc2d9b0152f5ee96d72dde522a7827690349d9307935dacf40f42ec"
+  },
+  {
+    "file": "pycdlib-1.14.0-py2.py3-none-any.whl",
+    "source": "https://files.pythonhosted.org/packages/0c/dd/95557c0e3bad0e8ba10c0f17d9deffb139b106eda528a744e544799cbbfb/pycdlib-1.14.0-py2.py3-none-any.whl",
+    "algorithm": "sha256",
+    "digest": "a905827335f0066af3fd416c5cf9b1f29dffaf4d0914b714555213d1809f38d4"
+  }
+]
