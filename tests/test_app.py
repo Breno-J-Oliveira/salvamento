@@ -6,6 +6,7 @@ from unittest.mock import patch
 from contextlib import contextmanager
 os.environ.setdefault('SECRET_KEY', 'test-only-not-a-production-secret')
 import app as module
+from team_helpers import put_in_team
 
 class AppTests(unittest.TestCase):
     def setUp(self):
@@ -20,6 +21,9 @@ class AppTests(unittest.TestCase):
     def tearDown(self):
         module.DB = self.old_db
         self.temp.cleanup()
+
+    def join_team(self, side='Red Team'):
+        put_in_team(module.DB, self.scalar("SELECT id FROM users WHERE email='person@example.com'"), side)
 
     def post(self, path, data=None, client=None):
         client = client or self.client
@@ -124,6 +128,7 @@ class AppTests(unittest.TestCase):
 
     def test_lab_unique_flag_and_expiry(self):
         self.login()
+        self.join_team()
         with patch.object(module.orch,'start',return_value=12345):self.post('/challenge/2/start')
         self.assertEqual(self.scalar('SELECT COUNT(*) FROM instances WHERE active=1'),1)
         with self.connection() as con:
@@ -133,21 +138,22 @@ class AppTests(unittest.TestCase):
 
     def test_start_idempotent_and_failure_not_leaked(self):
         self.login()
+        self.join_team()
         with patch.object(module.orch,'start',return_value=12345) as start, patch.object(module.orch,'status',return_value=True):
             self.post('/challenge/2/start'); self.post('/challenge/2/start')
             self.assertEqual(start.call_count,1)
-        with patch.object(module.orch,'stop',side_effect=module.orch.DockerError('secret sentinel')):
+        with patch.object(module.orch,'stop',side_effect=module.orch.LabError('secret sentinel')):
             self.post('/challenge/2/stop')
             self.assertEqual(self.scalar('SELECT active FROM instances'),1)
         with patch.object(module.orch,'stop',return_value=None):self.post('/challenge/2/stop')
-        with patch.object(module.orch,'start',side_effect=module.orch.DockerError('secret sentinel')):
+        with patch.object(module.orch,'start',side_effect=module.orch.LabError('secret sentinel')):
             self.post('/challenge/2/start')
         with self.client.session_transaction() as sess:self.assertNotIn('secret sentinel',str(sess.get('_flashes')))
 
     def test_reaper_preserves_failed_instances(self):
         with self.connection() as con:
             con.execute("INSERT INTO instances(container,active,expires_at) VALUES('lab-u1-c2-abcdef',1,0)")
-        with patch.object(module.orch,'stop',side_effect=module.orch.DockerError('failure')):module.reap_expired()
+        with patch.object(module.orch,'stop',side_effect=module.orch.LabError('failure')):module.reap_expired()
         self.assertEqual(self.scalar('SELECT active FROM instances'),1)
         with patch.object(module.orch,'stop',return_value=None):module.reap_expired()
         self.assertEqual(self.scalar('SELECT active FROM instances'),0)
@@ -255,15 +261,17 @@ class AppTests(unittest.TestCase):
 
     def test_challenge_reconciles_missing_container(self):
         self.login()
+        self.join_team()
         with patch.object(module.orch,'start',return_value=12345):self.post('/challenge/2/start')
         with patch.object(module.orch,'status',return_value=False):
             self.assertEqual(self.client.get('/challenge/2').status_code,200)
         self.assertEqual(self.scalar('SELECT active FROM instances'),0)
 
-    def test_challenge_keeps_state_when_docker_unavailable(self):
+    def test_challenge_keeps_state_when_vbox_unavailable(self):
         self.login()
+        self.join_team()
         with patch.object(module.orch,'start',return_value=12345):self.post('/challenge/2/start')
-        with patch.object(module.orch,'status',side_effect=module.orch.DockerError('offline')):
+        with patch.object(module.orch,'status',side_effect=module.orch.LabError('offline')):
             response=self.client.get('/challenge/2')
             self.assertEqual(response.status_code,200)
             self.assertIn('Não foi possível confirmar'.encode(),response.data)

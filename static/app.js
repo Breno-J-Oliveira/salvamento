@@ -4,16 +4,19 @@ function filterRows() {
   const search = document.querySelector("[data-filter]");
   if (!search) return;
   const side = document.querySelector("[data-side-filter]");
+  const audience = document.querySelector("[data-audience-filter]");
   const list = document.querySelector(search.dataset.filter);
   if (!list) return;
   let visible = 0;
   list.querySelectorAll("[data-search]").forEach(item => {
-    const matches = fold(item.dataset.search).includes(fold(search.value.trim())) && (!side || !side.value || item.dataset.side === side.value);
+    // Desafios para "Todos" aparecem em qualquer filtro de público.
+    const audienceMatch = !audience || !audience.value || !item.dataset.audience || item.dataset.audience === audience.value || item.dataset.audience === "Todos";
+    const matches = fold(item.dataset.search).includes(fold(search.value.trim())) && (!side || !side.value || item.dataset.side === side.value) && audienceMatch;
     item.hidden = !matches;
     if (matches) visible++;
   });
   const empty = document.querySelector("[data-filter-empty]");
-  if (empty) empty.hidden = visible !== 0 || (!search.value && (!side || !side.value));
+  if (empty) empty.hidden = visible !== 0 || (!search.value && (!side || !side.value) && (!audience || !audience.value));
   let status = document.querySelector("[data-filter-status]");
   if (!status) {
     status = document.createElement("p"); status.className = "sr-only"; status.dataset.filterStatus = "";
@@ -22,7 +25,7 @@ function filterRows() {
   status.textContent = visible + (visible === 1 ? " resultado encontrado." : " resultados encontrados.");
 }
 document.querySelectorAll("[data-filter]").forEach(el => el.addEventListener("input", filterRows));
-document.querySelectorAll("[data-side-filter]").forEach(el => el.addEventListener("change", filterRows));
+document.querySelectorAll("[data-side-filter],[data-audience-filter]").forEach(el => el.addEventListener("change", filterRows));
 
 const pendingForms = new WeakSet();
 const originalButtons = new WeakMap();

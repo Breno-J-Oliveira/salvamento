@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Editar artigo{% endblock %}{% block content %}
+<section class="page-heading"><a class="back" href="/admin/blog">Voltar ao blog</a><h1>Editar artigo</h1></section>
+<section class="card blog-edit"><form method="post" action="/admin/blog/{{ post.id }}">{% include "_blog_form.html" %}<div class="page-actions"><button>Salvar alterações</button><a class="button secondary" href="/admin/blog">Cancelar</a></div></form></section>
+{% endblock %}

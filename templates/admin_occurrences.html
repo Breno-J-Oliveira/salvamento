@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Ocorrências nos desafios{% endblock %}{% block content %}
+<section class="page-heading"><span class="pill">Acompanhamento</span><h1>Ocorrências nos desafios</h1><p>Registros de saída da tela enquanto o participante resolvia um desafio. São indicadores para conversar com a pessoa, não prova de irregularidade: uma queda de conexão, um alerta do sistema ou uma consulta autorizada também podem gerar registro.</p></section>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Resumo por participante, com rolagem horizontal">
+<table><caption>Resumo por participante</caption><thead><tr><th>Participante</th><th>Equipe</th><th>Ocorrências</th><th>Última</th></tr></thead><tbody>
+{% for s in summary %}<tr><td><a href="/participante/{{ s.id }}">{{ s.name }}</a></td><td>{{ s.team }}</td><td>{{ s.total }}</td><td>{{ fmt(s.last_at) }}</td></tr>
+{% else %}<tr><td colspan="4" class="empty">Nenhuma ocorrência registrada até agora.</td></tr>{% endfor %}</tbody></table></div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Últimas ocorrências, com rolagem horizontal">
+<table><caption>Últimas 200 ocorrências</caption><thead><tr><th>Quando</th><th>Participante</th><th>Desafio</th><th>O que aconteceu</th></tr></thead><tbody>
+{% for o in recent %}<tr><td>{{ fmt(o.created_at) }}</td><td><a href="/participante/{{ o.user_id }}">{{ o.name }}</a></td><td>{{ o.title }}</td><td>{{ kinds.get(o.kind, o.kind) }}</td></tr>
+{% else %}<tr><td colspan="4" class="empty">Nenhuma ocorrência registrada até agora.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% if errors %}<div class="notice error" role="alert"><strong>Confira os campos:</strong><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label for="ch-title">Título</label>
+<input id="ch-title" name="title" minlength="3" maxlength="120" required value="{{ c.title|default('') }}" placeholder="Ex.: Fechamento do caixa do dia">
+<div class="blog-form-row">
+<div><label for="ch-category">Área / categoria</label>
+<input id="ch-category" name="category" list="ch-category-list" minlength="2" maxlength="60" required value="{{ c.category|default('') }}" placeholder="Ex.: Financeiro" aria-describedby="ch-category-help">
+<datalist id="ch-category-list">{% for s in suggestions %}<option value="{{ s }}">{% endfor %}</datalist>
+<p class="field-help" id="ch-category-help">Escolha uma sugestão ou digite uma área nova. Desafios da mesma área são agrupados na evolução do participante.</p></div>
+<div><label for="ch-points">Pontos</label>
+<input id="ch-points" name="points" type="number" min="10" max="1000" step="10" required value="{{ c.points|default(100) }}"></div>
+</div>
+<div class="blog-form-row">
+<div><label for="ch-side">Trilha</label>
+<select id="ch-side" name="side" required>{% for s in sides %}<option {% if c.side|default('Corporativo') == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+<div><label for="ch-audience">Público</label>
+<select id="ch-audience" name="audience" required>{% for a in audiences %}<option {% if c.audience|default('Colaboradores') == a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></div>
+</div>
+<p class="field-help">Trilha &quot;Corporativo&quot; serve para qualquer área da empresa. Red Team e Blue Team exigem que o participante esteja em uma equipe do mesmo lado. Público apenas rotula e permite filtrar; todos os participantes autenticados veem os desafios ativos.</p>
+<label for="ch-description">Briefing do desafio</label>
+<textarea id="ch-description" name="description" rows="9" minlength="20" maxlength="4000" required aria-describedby="ch-description-help">{{ c.description|default('') }}</textarea>
+<p class="field-help" id="ch-description-help">Descreva o cenário, os dados e a pergunta. Diga em que formato a resposta deve ser enviada (ex.: CTF{valor}).</p>
+{% if c.image %}<p class="notice">Este desafio tem ambiente virtual. A resposta é gerada para cada instância e não pode ser editada aqui.</p>
+{% else %}<label for="ch-answer">Resposta correta {% if c.id %}<span class="muted">(deixe em branco para manter a atual)</span>{% endif %}</label>
+<input id="ch-answer" name="answer" maxlength="200" {% if not c.id %}required{% endif %} autocomplete="off" spellcheck="false" class="mono" placeholder="Ex.: CTF{480}" aria-describedby="ch-answer-help">
+<p class="field-help" id="ch-answer-help">A resposta é guardada apenas como hash e nunca é exibida de novo. A comparação é exata, inclusive maiúsculas e acentos; por isso, indique o formato no briefing.</p>{% endif %}
+<label class="blog-check"><input type="checkbox" name="active" value="1" {% if c.active|default(1) %}checked{% endif %}> Ativo (visível para os participantes)</label>

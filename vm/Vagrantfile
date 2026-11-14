@@ -1,0 +1,18 @@
+# VM base dos laboratórios. Construída uma vez por scripts/setup_virtualbox.ps1;
+# o orchestrator.py cria clones vinculados dela para cada participante.
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-24.04"   # inclui VirtualBox Guest Additions (guest properties)
+  config.vm.hostname = "cti-lab"
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "cti-lab-base"
+    vb.memory = 512
+    vb.cpus = 1
+    vb.gui = false
+    vb.customize ["modifyvm", :id, "--groups", "/cti-lab"]
+  end
+  config.vm.provision "file", source: "../challenges", destination: "/tmp/challenges"
+  config.vm.provision "file", source: "guest/run.sh", destination: "/tmp/run.sh"
+  config.vm.provision "file", source: "guest/cti-lab.service", destination: "/tmp/cti-lab.service"
+  config.vm.provision "shell", path: "guest/provision.sh"
+end

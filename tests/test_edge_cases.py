@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import app as module
+from team_helpers import put_in_team
 
 class EdgeCases(unittest.TestCase):
     def setUp(self):
@@ -52,7 +53,8 @@ class EdgeCases(unittest.TestCase):
 
     def test_all_static_challenge_answers(self):
         client=self.client()
-        for cid,flag in [(1,'CTF{bem_vindo_ao_purple_lab}'),(3,'CTF{base64_nao_e_criptografia}'),(4,'CTF{192.168.56.23}')]:
+        for cid,flag,side in [(1,'CTF{bem_vindo_ao_purple_lab}',None),(3,'CTF{base64_nao_e_criptografia}','Red Team'),(4,'CTF{192.168.56.23}','Blue Team')]:
+            if side:put_in_team(module.DB,2,side)   # desafios Red/Blue exigem equipe do mesmo lado
             self.assertEqual(client.post(f'/challenge/{cid}',data={'csrf_token':'token','flag':flag}).status_code,302)
         with module.app.test_request_context():
             self.assertEqual(module.stats()[0]['points'],300)

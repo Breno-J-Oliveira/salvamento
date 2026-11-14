@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}Gerenciar blog{% endblock %}{% block content %}
+<section class="page-heading"><span class="pill">Conteúdo</span><h1>Blog de estudos</h1><p>Publique guias e artigos para os participantes. Os artigos publicados aparecem em <a href="/blog">/blog</a>.</p></section>
+<div class="blog-admin">
+<section class="card"><h2>Novo artigo</h2><form method="post" action="/admin/blog">{% include "_blog_form.html" %}<button>Salvar artigo</button></form></section>
+<section class="card"><h2>Artigos cadastrados</h2>
+{% if posts %}<ul class="blog-admin-list">{% for p in posts %}<li>
+<div><span class="tag">{{ p.category }}</span> <span class="status-badge {{ 'status-selected' if p.published else '' }}">{{ 'Publicado' if p.published else 'Rascunho' }}</span><h3>{{ p.title }}</h3><p class="muted">{{ p.author or 'Equipe' }} · {{ fmt(p.created_at) }}</p></div>
+<div class="blog-admin-actions"><a class="button secondary" href="/admin/blog/{{ p.id }}">Editar<span class="sr-only"> {{ p.title }}</span></a>
+<form method="post" action="/admin/blog/{{ p.id }}/toggle"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary">{{ 'Ocultar' if p.published else 'Publicar' }}<span class="sr-only"> {{ p.title }}</span></button></form>
+<form method="post" action="/admin/blog/{{ p.id }}/delete" data-confirm="Excluir o artigo &quot;{{ p.title }}&quot;? Esta ação não pode ser desfeita."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary danger">Excluir<span class="sr-only"> {{ p.title }}</span></button></form></div>
+</li>{% endfor %}</ul>
+{% else %}<p class="muted">Nenhum artigo cadastrado ainda. Os guias fixos continuam aparecendo no blog.</p>{% endif %}
+</section></div>
+{% endblock %}

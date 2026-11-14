@@ -22,7 +22,7 @@ while ($searchRoot) {
 if (-not $python) {
     throw 'Python da .venv não encontrado nesta pasta ou nos ancestrais. Prepare a .venv conforme README.md.'
 }
-& $python -c 'import flask, importlib.metadata; print(importlib.metadata.version(flask.__name__))'
+& $python -c 'import flask, importlib.metadata; print("Flask " + importlib.metadata.version("Flask"))'
 if ($LASTEXITCODE -ne 0) {
     throw "Dependências indisponíveis. Execute: & '$python' -m pip install -r '$projectRoot\requirements.txt'"
 }
@@ -45,7 +45,7 @@ if ($Demo) {
         throw 'O modo Demo não aceita lab.db. Escolha outro arquivo com -Database.'
     }
     if (Test-Path -LiteralPath $databasePath) {
-        & $python (Join-Path $PSScriptRoot 'verify_demo.py') $databasePath
+        & $python -c 'import sqlite3, sys; from pathlib import Path; p=Path(sys.argv[1]).resolve(); c=sqlite3.connect(p.as_uri()+"?mode=ro", uri=True); assert c.execute("SELECT value FROM demo_metadata WHERE name=?", ("fixture",)).fetchone()==("purple-talent-presentation-v1",), "Banco sem marcador de demonstracao"; c.close()' $databasePath
         if ($LASTEXITCODE -ne 0) { throw 'Este arquivo não é uma base de demonstração reconhecida. Nenhuma alteração foi aplicada.' }
     } else {
         & $python (Join-Path $PSScriptRoot 'prepare_demo.py') $databasePath
@@ -63,7 +63,7 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 Write-Host "Projeto: $projectRoot"
 Write-Host "Commit: $revision (alterações locais podem existir)"
 Write-Host "Python: $python"
-Write-Host "Modo: $(if ($Demo) { 'DEMONSTRAÇÃO — dados fictícios, sem Docker no percurso principal' } else { 'LOCAL — banco selecionado abaixo' })"
+Write-Host "Modo: $(if ($Demo) { 'DEMONSTRAÇÃO — dados fictícios, sem VirtualBox no percurso principal' } else { 'LOCAL — banco selecionado abaixo' })"
 Write-Host "Banco: $databasePath"
 Write-Host "Endereço: http://127.0.0.1:$Port"
 Write-Host 'Ctrl+C encerra este servidor. Nenhum processo existente será encerrado pelo launcher.'

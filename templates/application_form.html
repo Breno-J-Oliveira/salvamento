@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% from '_recruitment.html' import errors_summary with context %}{% block title %}Candidatura · {{ job.title }}{% endblock %}{% block content %}
-<a class="back" href="/opportunities/{{ job.id }}">Voltar à vaga</a><section class="page-heading"><span class="pill">Candidatura · preenchimento</span><h1>Seu perfil para {{ job.title }}.</h1><p>{{ job.company }} · As perguntas pertencem a esta vaga. Você revisará as respostas antes de confirmar o envio.</p></section>
+<a class="back" href="/opportunities/{{ job.id }}">Voltar à vaga</a><section class="page-heading"><span class="pill">Candidatura · preenchimento</span><h1>Seu perfil para {{ job.title }}</h1><p>{{ job.company }} · As perguntas pertencem a esta vaga. Você revisará as respostas antes de confirmar o envio.</p></section>
 {{ errors_summary(errors|default({}), questions=questions) }}
 {% if not job_is_open(job) %}<div class="notice" role="status"><strong>Esta vaga não recebe novas inscrições.</strong><p>O prazo terminou ou a equipe interrompeu as inscrições. Seu rascunho salvo foi preservado e pode ser consultado abaixo.</p><a href="/my-applications">Voltar às minhas candidaturas</a></div>{% endif %}
 {% if application and application.status == 'draft' %}<p class="notice" role="status">Rascunho recuperado. A candidatura só será enviada após sua confirmação na revisão.</p>{% endif %}

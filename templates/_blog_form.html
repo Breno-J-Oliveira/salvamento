@@ -1,0 +1,13 @@
+{% if errors %}<div class="notice error" role="alert"><strong>Confira os campos:</strong><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<label for="post-title">Título</label>
+<input id="post-title" name="title" minlength="3" maxlength="120" required value="{{ post.title|default('') }}" placeholder="Ex.: Como identificar uma injeção de SQL">
+<label for="post-category">Categoria</label>
+<select id="post-category" name="category" required>{% for c in categories %}<option {% if post.category|default('') == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+<label for="post-summary">Resumo <span class="muted">(opcional, até 280 caracteres)</span></label>
+<input id="post-summary" name="summary" maxlength="280" value="{{ post.summary|default('') }}" placeholder="Uma frase que aparece abaixo do título">
+<label for="post-body">Texto do artigo</label>
+<textarea id="post-body" name="body" rows="10" minlength="20" maxlength="8000" required aria-describedby="post-body-help">{{ post.body|default('') }}</textarea>
+<p class="field-help" id="post-body-help">Separe os parágrafos com uma linha em branco.</p>
+<div class="blog-form-row"><div><label for="post-link">Link de prática <span class="muted">(opcional)</span></label><input id="post-link" name="link_url" maxlength="300" value="{{ post.link_url|default('') }}" placeholder="/challenges ou https://..."></div><div><label for="post-link-label">Texto do link</label><input id="post-link-label" name="link_label" maxlength="80" value="{{ post.link_label|default('') }}" placeholder="Praticar no desafio"></div></div>
+<label class="blog-check"><input type="checkbox" name="published" value="1" {% if post.published|default(1) %}checked{% endif %}> Publicar no blog agora</label>

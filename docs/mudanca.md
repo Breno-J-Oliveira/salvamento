@@ -1,9 +1,3 @@
-## Entrega de 13/11/2026 — laboratório Linux para candidatos em sequência
-
-O operador agenda um número finito de máquinas descartáveis, espera a sessão existente terminar e prepara a próxima com disco e credencial próprios. Ele verifica a ponte TLS e o espaço do runtime e interrompe a rodada se o agente perder contato. A interface agora permite retomar uma investigação ativa e separa as sessões encerradas no histórico.
-
-Verificação em dois navegadores de candidato, com banco de demonstração separado e duas VMs reais. O primeiro participante gravou um arquivo. O segundo encontrou a VM limpa, consultou os artefatos do caso e não teve acesso ao diário do primeiro. As duas sessões terminaram com histórico preservado. Os 43 testes de regressão do laboratório passaram e o botão de retomada foi verificado no Chrome em 390 e 1440 pixels. [Comandos para apresentar](LABORATORIOS-REMOTOS.md#rodada-local-de-candidatos)
-
 ## Evolução de usabilidade
 
 23 melhorias concluídas e verificadas; consulte [EVOLUCAO-23-MELHORIAS.md](EVOLUCAO-23-MELHORIAS.md) para a lista numerada e evidências desta etapa. Nenhuma mudança de tecnologia ou exclusão de dados.

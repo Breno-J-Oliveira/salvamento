@@ -1,118 +1,138 @@
-import json
+import os
+import secrets
 import unittest
 from unittest.mock import patch, MagicMock
 import orchestrator as orch
 
+VMS = '"cti-lab-base" {11111111-1111-1111-1111-111111111111}\n"lab-u1-c2-abcdef" {22222222-2222-2222-2222-222222222222}'
+FLAG = "CTF{0123456789abcdef}"
+
+
+def fake_vbox(running="", owned=True, fail_on=None):
+    calls = []
+
+    def vbox(*args, **kwargs):
+        calls.append(args)
+        if fail_on and args[0] == fail_on:
+            raise orch.LabError("falha")
+        if args[:2] == ("list", "vms"):
+            return VMS
+        if args[:2] == ("list", "runningvms"):
+            return running
+        if args[0] == "getextradata":
+            return "Value: 1" if owned else "No value set!"
+        if args[0] == "snapshot":
+            return 'SnapshotName="base"'
+        return ""
+    return vbox, calls
+
 
 class OrchestratorTests(unittest.TestCase):
-    def test_rejects_unapproved_image_even_if_present(self):
-        with patch.object(orch, "_docker") as docker:
-            with self.assertRaises(orch.DockerError):
+    def test_rejects_unapproved_image(self):
+        with patch.object(orch, "_vbox") as vbox:
+            with self.assertRaises(orch.LabError):
                 orch.ensure_image("alpine")
-            docker.assert_not_called()
+            vbox.assert_not_called()
 
-    def test_rejects_foreign_container(self):
-        with patch.object(orch, "_docker") as docker:
-            with self.assertRaises(orch.DockerError):
-                orch.stop("another-project-db")
-            docker.assert_not_called()
+    def test_rejects_foreign_vm_name(self):
+        with patch.object(orch, "_vbox") as vbox:
+            with self.assertRaises(orch.LabError):
+                orch.stop("another-project-vm")
+            vbox.assert_not_called()
 
     def test_stop_absent_is_idempotent(self):
-        with patch.object(orch, "_docker", return_value="") as docker:
-            orch.stop("lab-u1-c2-abcdef")
-            self.assertEqual(docker.call_count, 1)
+        vbox, calls = fake_vbox()
+        with patch.object(orch, "_vbox", side_effect=vbox):
+            orch.stop("lab-u9-c9-abcdef")
+        self.assertFalse(any(c[0] in ("controlvm", "unregistervm") for c in calls))
 
-    def test_stop_does_not_hide_docker_failure(self):
-        with patch.object(orch, "_docker", side_effect=orch.DockerError("offline")):
-            with self.assertRaises(orch.DockerError):
+    def test_stop_skips_vm_without_owner_marker(self):
+        vbox, calls = fake_vbox(owned=False)
+        with patch.object(orch, "_vbox", side_effect=vbox):
+            orch.stop("lab-u1-c2-abcdef")
+        self.assertFalse(any(c[0] == "unregistervm" for c in calls))
+
+    def test_stop_powers_off_and_deletes(self):
+        vbox, calls = fake_vbox(running='"lab-u1-c2-abcdef" {2222}')
+        with patch.object(orch, "_vbox", side_effect=vbox):
+            orch.stop("lab-u1-c2-abcdef")
+        self.assertIn(("controlvm", "lab-u1-c2-abcdef", "poweroff"), calls)
+        self.assertIn(("unregistervm", "lab-u1-c2-abcdef", "--delete"), calls)
+
+    def test_stop_does_not_hide_failure(self):
+        with patch.object(orch, "_vbox", side_effect=orch.LabError("offline")):
+            with self.assertRaises(orch.LabError):
                 orch.stop("lab-u1-c2-abcdef")
 
-    def test_status_only_owned_running_name(self):
-        with patch.object(orch, "_docker", return_value="lab-u1-c2-abcdef"):
+    def test_status_only_running_name(self):
+        vbox, _ = fake_vbox(running='"lab-u1-c2-abcdef" {2222}')
+        with patch.object(orch, "_vbox", side_effect=vbox):
             self.assertTrue(orch.status("lab-u1-c2-abcdef"))
             self.assertFalse(orch.status("lab-u2-c2-abcdef"))
 
-    def test_network_rejects_unsafe_configuration(self):
-        with patch.object(orch, "_docker", side_effect=[orch.NETWORK, '[{"Options": {}}]']):
-            with self.assertRaises(orch.DockerError):
-                orch.ensure_network()
+    def test_missing_base_vm_is_reported(self):
+        with patch.object(orch, "_vbox", return_value=""):
+            with self.assertRaisesRegex(orch.LabError, "setup_virtualbox"):
+                orch.ensure_base()
 
-    def test_network_malformed_payload_is_domain_error(self):
-        for payload in ('not-json', '[]', 'null', '{}', '[null]'):
-            with self.subTest(payload=payload), patch.object(orch, '_docker', side_effect=[orch.NETWORK, payload]):
-                with self.assertRaises(orch.DockerError):
-                    orch.ensure_network()
-
-    def test_network_requires_bridge_even_with_icc_disabled(self):
-        payload=json.dumps([{'Driver':'host','Options':{'com.docker.network.bridge.enable_icc':'false'}}])
-        with patch.object(orch,'_docker',side_effect=[orch.NETWORK,payload]):
-            with self.assertRaises(orch.DockerError):orch.ensure_network()
-
-    def test_valid_legacy_bridge_does_not_require_recreation(self):
-        payload=json.dumps([{'Driver':'bridge','Options':{'com.docker.network.bridge.enable_icc':'false'}}])
-        with patch.object(orch,'_docker',side_effect=[orch.NETWORK,payload]) as docker:
-            orch.ensure_network()
-            self.assertEqual(docker.call_count,2)
-
-    def test_failed_cleanup_preserves_original_start_error(self):
-        with patch.object(orch,'ensure_network'),patch.object(orch,'ensure_image'),patch.object(orch,'_docker',side_effect=['id','not-json']),patch.object(orch,'stop',side_effect=orch.DockerError('cleanup error')):
-            with self.assertRaisesRegex(orch.DockerError,'configuração de porta inválida') as caught:
-                orch.start('lab-u1-c2-abcdef','cti-lab/web-01',5000,'CTF{0123456789abcdef}')
-            self.assertTrue(caught.exception.__notes__)
-
-    def test_invalid_port_is_cleaned_up(self):
-        payload=json.dumps({'5000/tcp':[{'HostIp':'127.0.0.1','HostPort':'0'}]})
-        with patch.object(orch,'ensure_network'),patch.object(orch,'ensure_image'),patch.object(orch,'_docker',side_effect=['id',payload]),patch.object(orch,'stop') as stop:
-            with self.assertRaises(orch.DockerError):orch.start('lab-u1-c2-abcdef','cti-lab/web-01',5000,'CTF{0123456789abcdef}')
-            stop.assert_called_once_with('lab-u1-c2-abcdef')
-
-    def test_stop_queries_ownership_before_bounded_removal(self):
-        with patch.object(orch,'_docker',side_effect=['lab-u1-c2-abcdef','']) as docker:
-            orch.stop('lab-u1-c2-abcdef')
-            self.assertEqual(docker.call_args_list[0].kwargs['timeout'],orch.QUERY_TIMEOUT)
-            self.assertEqual(docker.call_args_list[1].kwargs['timeout'],orch.STOP_TIMEOUT)
-
-    def test_readiness_timeout_cleans_up_instance(self):
-        payload=json.dumps({'5000/tcp':[{'HostIp':'127.0.0.1','HostPort':'43210'}]})
-        with patch.object(orch,'ensure_network'),patch.object(orch,'ensure_image'),patch.object(orch,'_docker',side_effect=['id',payload]),patch.object(orch.time,'monotonic',side_effect=[0,31]),patch.object(orch,'stop') as stop:
-            with self.assertRaisesRegex(orch.DockerError,'não ficou pronto'):
-                orch.start('lab-u1-c2-abcdef','cti-lab/web-01',5000,'CTF{0123456789abcdef}')
-            stop.assert_called_once()
-
-    def test_os_execution_failure_is_safe_domain_error(self):
-        with patch.object(orch.subprocess,'run',side_effect=PermissionError('secret host path')):
-            with self.assertRaises(orch.DockerError) as caught:orch._docker('ps')
-            self.assertNotIn('secret',str(caught.exception))
-
-    def test_start_allocates_port_and_hides_flag_from_arguments(self):
-        calls = []
-        def docker(*args, **kwargs):
-            calls.append((args, kwargs))
-            return json.dumps({"5000/tcp": [{"HostIp": "127.0.0.1", "HostPort": "43210"}]}) if args[0] == "inspect" else "id"
+    def test_start_uses_linked_clone_local_port_and_hides_flag(self):
+        vbox, calls = fake_vbox()
         response = MagicMock()
         response.__enter__.return_value.status = 200
-        with patch.object(orch, "ensure_network"), patch.object(orch, "ensure_image"), patch.object(orch, "_docker", side_effect=docker), patch.object(orch.urllib.request, "urlopen", return_value=response):
-            self.assertEqual(orch.start("lab-u1-c2-abcdef", "cti-lab/web-01", 5000, "CTF{0123456789abcdef}"), 43210)
-        args, kwargs = calls[0]
-        self.assertEqual(args[-1], "cti-lab/web-01")
-        self.assertNotIn("CTF{0123456789abcdef}", " ".join(args))
-        self.assertEqual(kwargs["env"]["FLAG"], "CTF{0123456789abcdef}")
-        self.assertIn("127.0.0.1::5000", args)
-        self.assertIn("--read-only", args)
+        with patch.object(orch, "_vbox", side_effect=vbox), patch.object(orch, "_free_port", return_value=43210), \
+                patch.object(orch.urllib.request, "urlopen", return_value=response):
+            port = orch.start("lab-u1-c2-abcdef", "cti-lab/web-01", 5000, FLAG)
+        self.assertEqual(port, 43210)
+        clone = next(c for c in calls if c[0] == "clonevm")
+        self.assertIn("link", clone)
+        self.assertIn("lab,tcp,127.0.0.1,43210,,5000", [a for c in calls for a in c])
+        flag_calls = [c for c in calls if FLAG in c]
+        self.assertEqual(len(flag_calls), 1)
+        self.assertEqual(flag_calls[0][:4], ("guestproperty", "set", "lab-u1-c2-abcdef", "/CTI/Flag"))
+        self.assertIn("RDONLYGUEST", flag_calls[0])
 
-    def test_docker_error_does_not_expose_output(self):
-        result = MagicMock(returncode=1, stderr="FLAG=secret", stdout="")
+    def test_readiness_timeout_cleans_up_instance(self):
+        vbox, _ = fake_vbox()
+        with patch.object(orch, "_vbox", side_effect=vbox), patch.object(orch, "_free_port", return_value=43210), \
+                patch.object(orch.time, "monotonic", side_effect=[0, orch.READY_TIMEOUT + 1]), \
+                patch.object(orch, "stop") as stop:
+            with self.assertRaisesRegex(orch.LabError, "não ficou pronto"):
+                orch.start("lab-u1-c2-abcdef", "cti-lab/web-01", 5000, FLAG)
+            stop.assert_called_once_with("lab-u1-c2-abcdef")
+
+    def test_failed_cleanup_preserves_original_start_error(self):
+        vbox, _ = fake_vbox(fail_on="startvm")
+        with patch.object(orch, "_vbox", side_effect=vbox), patch.object(orch, "_free_port", return_value=43210), \
+                patch.object(orch, "stop", side_effect=orch.LabError("cleanup")):
+            with self.assertRaises(orch.LabError) as caught:
+                orch.start("lab-u1-c2-abcdef", "cti-lab/web-01", 5000, FLAG)
+            self.assertTrue(caught.exception.__notes__)
+
+    def test_rejects_invalid_flag_and_port(self):
+        with patch.object(orch, "_vbox") as vbox:
+            with self.assertRaises(orch.LabError):
+                orch.start("lab-u1-c2-abcdef", "cti-lab/web-01", 5000, "flag; rm -rf /")
+            with self.assertRaises(orch.LabError):
+                orch.start("lab-u1-c2-abcdef", "cti-lab/web-01", 22, FLAG)
+            vbox.assert_not_called()
+
+    def test_os_execution_failure_is_safe_domain_error(self):
+        with patch.object(orch.subprocess, "run", side_effect=PermissionError("secret host path")):
+            with self.assertRaises(orch.LabError) as caught:
+                orch._vbox("list", "vms")
+            self.assertNotIn("secret", str(caught.exception))
+
+    def test_error_does_not_expose_output(self):
+        result = MagicMock(returncode=1, stderr="CTF{secret}", stdout="")
         with patch.object(orch.subprocess, "run", return_value=result):
-            with self.assertRaises(orch.DockerError) as caught:
-                orch._docker("run")
+            with self.assertRaises(orch.LabError) as caught:
+                orch._vbox("guestproperty", "set")
             self.assertNotIn("secret", str(caught.exception))
 
 
-
-@unittest.skipUnless(__import__("os").environ.get("RUN_DOCKER_TESTS") == "1", "Docker real opcional: RUN_DOCKER_TESTS=1")
-class DockerIntegrationTests(unittest.TestCase):
+@unittest.skipUnless(os.environ.get("RUN_VBOX_TESTS") == "1", "VirtualBox real opcional: RUN_VBOX_TESTS=1")
+class VBoxIntegrationTests(unittest.TestCase):
     def test_two_isolated_instances_and_cleanup(self):
-        import secrets
         first = "lab-u900001-c2-" + secrets.token_hex(3)
         second = "lab-u900002-c2-" + secrets.token_hex(3)
         flag1, flag2 = "CTF{" + secrets.token_hex(8) + "}", "CTF{" + secrets.token_hex(8) + "}"
@@ -123,12 +143,6 @@ class DockerIntegrationTests(unittest.TestCase):
             for port, flag in ((port1, flag1), (port2, flag2)):
                 with orch.urllib.request.urlopen(f"http://127.0.0.1:{port}/backup-interno") as response:
                     self.assertEqual(response.read().decode(), "FLAG: " + flag)
-            info = json.loads(orch._docker("inspect", first))[0]
-            self.assertTrue(info["HostConfig"]["ReadonlyRootfs"])
-            self.assertEqual(info["Config"]["User"], "10001:10001")
-            self.assertEqual(info["HostConfig"]["Memory"], 128 * 1024 * 1024)
-            self.assertIn("ALL", info["HostConfig"]["CapDrop"])
-            self.assertFalse(any("docker.sock" in mount.get("Source", "") for mount in info["Mounts"]))
             orch.stop(first)
             self.assertFalse(orch.status(first))
             self.assertTrue(orch.status(second))
@@ -136,6 +150,6 @@ class DockerIntegrationTests(unittest.TestCase):
             orch.stop(first)
             orch.stop(second)
 
+
 if __name__ == "__main__":
     unittest.main()
-

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 os.environ.setdefault('SECRET_KEY', 'test-only-incident-secret')
 import app as module
+from team_helpers import put_in_team
 
 
 class IncidentIntegrationTests(unittest.TestCase):
@@ -22,6 +23,7 @@ class IncidentIntegrationTests(unittest.TestCase):
             con.execute("INSERT INTO users(name,email,password,role,team) VALUES('Teste','incident@example.test','unused','participante','QA')")
             self.uid = con.execute("SELECT id FROM users WHERE email='incident@example.test'").fetchone()[0]
             self.cid = con.execute("SELECT id FROM challenges WHERE image='cti-lab/incident-01'").fetchone()[0]
+        put_in_team(module.DB, self.uid, 'Blue Team')   # o cenário de incidente é da trilha Blue Team
         with self.client.session_transaction() as session:
             session.update(user_id=self.uid, csrf='test-csrf')
 

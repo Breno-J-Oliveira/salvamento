@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Editar desafio{% endblock %}{% block content %}
+<section class="page-heading"><a class="back" href="/admin/challenges">Voltar aos desafios</a><h1>Editar desafio</h1></section>
+{% if use.attempts %}<p class="notice" role="note">Este desafio tem {{ use.attempts }} tentativa{{ '' if use.attempts == 1 else 's' }} e {{ use.solvers }} conclusão{{ '' if use.solvers == 1 else 'ões' }}. Alterar os pontos muda o ranking; alterar a resposta vale só para novas tentativas.</p>{% endif %}
+<section class="card blog-edit"><form method="post" action="/admin/challenges/{{ c.id }}">{% include "_challenge_form.html" %}<div class="page-actions"><button>Salvar alterações</button><a class="button secondary" href="/admin/challenges">Cancelar</a></div></form></section>
+{% endblock %}

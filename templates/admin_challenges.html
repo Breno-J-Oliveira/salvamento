@@ -1,5 +1,15 @@
-{% extends 'base.html' %}{% block title %}Gerenciar desafios{% endblock %}{% block content %}
-<a href="/admin">Voltar ao painel</a><section class="page-heading"><h1>Desafios de aprendizagem</h1><p>Prepare desafios textuais e escolha quando disponibilizá-los. Laboratórios Docker mantêm configuração controlada no código.</p></section>
-<div class="page-actions"><a class="button" href="/admin/challenges/new">Criar desafio</a><a href="/challenges">Ver catálogo de treino</a></div>
-<div class="table-wrap" role="region" aria-label="Catálogo editorial de desafios" tabindex="0"><table><thead><tr><th scope="col">Desafio</th><th scope="col">Área</th><th scope="col">Estado</th><th scope="col">Tentativas</th><th scope="col">Ação</th></tr></thead><tbody>{% for c in challenges %}<tr><td>{{ c.title }}<br><small>{{ c.category }} · {{ c.points }} pontos{% if c.image %} · Docker{% endif %}</small></td><td>{{ c.side }}</td><td>{{ states.get(c.editorial_status,c.editorial_status) }}</td><td>{{ c.attempts }}</td><td><a href="/admin/challenges/{{ c.id }}/edit">{{ 'Consultar configuração' if c.image else 'Editar desafio' }}<span class="sr-only"> {{ c.title }}</span></a></td></tr>{% else %}<tr><td colspan="5">Nenhum desafio cadastrado.</td></tr>{% endfor %}</tbody></table></div>
+{% extends "base.html" %}{% block title %}Gerenciar desafios{% endblock %}{% block content %}
+<section class="page-heading"><span class="pill">Conteúdo</span><h1>Desafios</h1><p>Crie desafios para candidatos e colaboradores, de qualquer área. Os desafios ativos aparecem em <a href="/challenges">/challenges</a>.</p></section>
+<div class="blog-admin">
+<section class="card"><h2>Novo desafio</h2><form method="post" action="/admin/challenges">{% include "_challenge_form.html" %}<button>Salvar desafio</button></form></section>
+<section class="card"><h2>Desafios cadastrados <span class="muted">({{ items|length }})</span></h2>
+<div class="toolbar"><label class="search">Buscar desafio<input type="search" data-filter="#admin-challenge-list" placeholder="Título, área ou público"></label><label>Público<select data-side-filter="#admin-challenge-list"><option value="">Todos os públicos</option>{% for a in audiences %}<option>{{ a }}</option>{% endfor %}</select></label></div>
+{% if items %}<ul class="blog-admin-list" id="admin-challenge-list">{% for p in items %}<li data-search="{{ p.title }} {{ p.category }} {{ p.side }} {{ p.audience }}" data-side="{{ p.audience }}">
+<div><span class="tag">{{ p.category }}</span> <span class="tag">{{ p.side }}</span> <span class="status-badge {{ 'status-selected' if p.active else '' }}">{{ 'Ativo' if p.active else 'Inativo' }}</span>{% if p.image %} <span class="tag">Ambiente virtual</span>{% endif %}<h3>{{ p.title }}</h3><p class="muted">{{ p.audience }} · {{ p.points }} pontos · {{ p.solvers }} concluíram em {{ p.attempts }} tentativa{{ '' if p.attempts == 1 else 's' }}</p></div>
+<div class="blog-admin-actions"><a class="button secondary" href="/admin/challenges/{{ p.id }}">Editar<span class="sr-only"> {{ p.title }}</span></a>
+<form method="post" action="/admin/challenges/{{ p.id }}/toggle"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary">{{ 'Desativar' if p.active else 'Ativar' }}<span class="sr-only"> {{ p.title }}</span></button></form>
+{% if p.created_by and not p.image %}<form method="post" action="/admin/challenges/{{ p.id }}/delete" data-confirm="Excluir o desafio &quot;{{ p.title }}&quot;? Esta ação não pode ser desfeita."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary danger">Excluir<span class="sr-only"> {{ p.title }}</span></button></form>{% endif %}</div>
+</li>{% endfor %}</ul><p class="empty" data-filter-empty hidden>Nenhum desafio corresponde à busca.</p>
+{% else %}<p class="muted">Nenhum desafio cadastrado.</p>{% endif %}
+</section></div>
 {% endblock %}

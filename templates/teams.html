@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block title %}Equipes{% endblock %}
+{% macro team_card(t, mine, is_mentor, can_join) %}<article class="card team-card {{ 'team-mine' if mine and mine.id == t.id }}">
+<div class="team-head"><span class="tag {{ t.side|lower|replace(' ', '') }}">{{ t.side }}</span><span class="status-badge {{ 'status-selected' if t.free == 0 else '' }}">{{ 'Equipe completa' if t.free == 0 else t.free ~ (' vaga livre' if t.free == 1 else ' vagas livres') }}</span></div>
+<h3>{{ t.name }}</h3>
+<div class="team-slots" role="img" aria-label="{{ t.members|length }} de {{ max_members }} integrantes">{% for i in range(max_members) %}<span class="{{ 'filled' if i < t.members|length }}"></span>{% endfor %}</div>
+<p class="muted team-score">{{ t.members|length }} de {{ max_members }} integrantes · {{ t.solved }} desafio{{ '' if t.solved == 1 else 's' }} resolvido{{ '' if t.solved == 1 else 's' }} · {{ t.points }} pontos</p>
+<ul class="team-members">{% for m in t.members %}<li><span class="team-member-name">{{ m.name }}</span><span class="muted">{{ m.solved }} concluído{{ '' if m.solved == 1 else 's' }}</span>{% if is_mentor %}<form method="post" action="/teams/{{ t.id }}/remove/{{ m.user_id }}" data-confirm="Remover {{ m.name }} da equipe {{ t.name }}?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary danger">Remover<span class="sr-only"> {{ m.name }}</span></button></form>{% endif %}</li>{% endfor %}{% for i in range(t.free) %}<li class="team-empty"><span class="muted">Vaga livre</span></li>{% endfor %}</ul>
+<div class="team-actions">
+{% if can_join and t.free > 0 %}<form method="post" action="/teams/{{ t.id }}/join"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Entrar nesta equipe<span class="sr-only">: {{ t.name }}</span></button></form>{% endif %}
+{% if mine and mine.id == t.id %}<form method="post" action="/teams/leave" data-confirm="Sair da equipe {{ t.name }}?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary danger">Sair da equipe</button></form>{% endif %}
+{% if is_mentor %}<form method="post" action="/teams/{{ t.id }}/delete" data-confirm="Desfazer a equipe {{ t.name }}? Os integrantes ficam sem equipe."><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="secondary danger">Desfazer equipe<span class="sr-only"> {{ t.name }}</span></button></form>{% endif %}
+</div></article>{% endmacro %}
+{% block content %}
+{% set is_mentor = session.role == 'mentor' %}{% set can_join = session.role == 'participante' and not mine %}
+<section class="page-heading"><span class="pill">Arena</span><h1>Equipes</h1><p>Os desafios de Red Team e Blue Team são resolvidos em equipe. Cada equipe tem até {{ max_members }} pessoas e atua em um lado. Um desafio resolvido por qualquer integrante conta uma vez para a equipe.</p></section>
+<div class="metrics"><div><span>Equipes Red Team</span><strong>{{ red|length }}</strong></div><div><span>Equipes Blue Team</span><strong>{{ blue|length }}</strong></div><div><span>Pessoas em equipes</span><strong>{{ teams|sum(attribute='members', start=[])|length }}</strong></div></div>
+{% if session.role == 'participante' %}{% if mine %}<section class="card team-mine-summary"><h2>Sua equipe</h2><p>Você está na equipe <strong>{{ mine.name }}</strong> ({{ mine.side }}). {{ 'Equipe completa: vocês podem resolver os desafios juntos.' if mine.free == 0 else 'Faltam ' ~ mine.free ~ (' pessoa' if mine.free == 1 else ' pessoas') ~ ' para completar o time.' }}</p></section>
+{% else %}<section class="card team-create"><h2>Criar uma equipe</h2><p class="muted">Você ainda não está em uma equipe. Crie a sua ou entre em uma que tenha vaga livre, abaixo.</p>
+<form method="post" action="/teams/create"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="blog-form-row"><div><label for="team-name">Nome da equipe</label><input id="team-name" name="name" minlength="3" maxlength="40" required placeholder="Ex.: Lobos do SOC"></div>
+<div><label for="team-side">Lado</label><select id="team-side" name="side" required>{% for s in sides %}<option>{{ s }}</option>{% endfor %}</select></div></div>
+<button>Criar equipe</button></form></section>{% endif %}{% endif %}
+<div class="teams-columns">
+<section aria-labelledby="red-title"><h2 id="red-title">Red Team</h2><p class="muted">Equipes de ataque: encontram falhas e exploram o ambiente.</p>
+{% for t in red %}{{ team_card(t, mine, is_mentor, can_join) }}{% else %}<p class="empty card">Nenhuma equipe Red Team ainda.</p>{% endfor %}</section>
+<section aria-labelledby="blue-title"><h2 id="blue-title">Blue Team</h2><p class="muted">Equipes de defesa: detectam, investigam e respondem.</p>
+{% for t in blue %}{{ team_card(t, mine, is_mentor, can_join) }}{% else %}<p class="empty card">Nenhuma equipe Blue Team ainda.</p>{% endfor %}</section>
+</div>
+{% endblock %}

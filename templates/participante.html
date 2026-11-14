@@ -70,4 +70,11 @@
 <td colspan="3" class="empty">Nenhuma tentativa registrada.</td>
 </tr>{% endfor %}</tbody>
 </table>
-</div><section class="card"><h2>Relatos de aprendizagem</h2>{% for w in writeups %}<h3>{{ w.title }}</h3><p class="pre">{{ w.content }}</p>{% else %}<p>Nenhum relato registrado.</p>{% endfor %}</section>{% endblock %}
+</div><div class="table-wrap" tabindex="0" role="region" aria-label="Ocorrências de foco, com rolagem horizontal">
+<table>
+<caption>Ocorrências durante desafios</caption>
+<thead><tr><th>Desafio</th><th>O que aconteceu</th><th>Quando</th></tr></thead>
+<tbody>{% for o in occurrences %}<tr><td>{{ o.title }}</td><td>{{ kinds.get(o.kind, o.kind) }}</td><td>{{ fmt(o.created_at) }}</td></tr>{% else %}<tr><td colspan="3" class="empty">Nenhuma saída de tela registrada durante desafios.</td></tr>{% endfor %}</tbody>
+</table>
+</div><p class="field-help">Ocorrências são indicadores para conversar com a pessoa, não prova de irregularidade.</p>
+<section class="card"><h2>Relatos de aprendizagem</h2>{% for w in writeups %}<h3>{{ w.title }}</h3><p class="pre">{{ w.content }}</p>{% else %}<p>Nenhum relato registrado.</p>{% endfor %}</section>{% endblock %}

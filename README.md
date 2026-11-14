@@ -1,10 +1,8 @@
+> Versão atual da equipe, com equipes iniciais e configuração de banco compartilhado. Consulte [hospedagem](docs/HOSPEDAGEM.md).
+
 # Purple Talent
 
-A equipe de seleção publica vagas, recebe candidaturas e acompanha investigações em uma VM Linux descartável. O laboratório fica em `/remote-labs`. Para atender candidatos em sequência no mesmo computador, o operador pode deixar uma rodada de VMs preparada para iniciar uma por vez. [Operação dos laboratórios](docs/LABORATORIOS-REMOTOS.md#rodada-local-de-candidatos)
-
-Novos sistemas internos: a mentoria cria desafios em `/admin/challenges`, prepara/atribui avaliações de funcionários em `/admin/assessments` e verifica disponibilidade em `/admin/laboratory-status`. A pessoa avaliada acessa `/my-assessments`. [Entrega, funcionamento e limites](docs/ENTREGA-SISTEMAS-INTERNOS.md). A landing e autenticação agora usam elementos HTML/CSS no lugar das artes geradas.
-
-Integração visual para 19/11: [entrega e verificação](docs/ENTREGA-POLIMENTO-19.md), [imagens e origem](docs/IMAGENS-APRESENTACAO.md). Para iniciar esta cópia sem ambiguidades: `./scripts/run_local.ps1`; para a demonstração separada sem Docker: `./scripts/run_local.ps1 -Demo -Port 5057`. O launcher identifica pasta/versão/base e recusa portas ocupadas.
+Integração visual para 19/11: [entrega e verificação](docs/ENTREGA-POLIMENTO-19.md), [imagens e origem](docs/IMAGENS-APRESENTACAO.md). Para iniciar esta cópia sem ambiguidades: `./scripts/run_local.ps1`; para a demonstração separada sem máquinas virtuais: `./scripts/run_local.ps1 -Demo -Port 5057`. O launcher identifica pasta/versão/base e recusa portas ocupadas.
 
 A evolução mais recente está em [23 melhorias de usabilidade](docs/EVOLUCAO-23-MELHORIAS.md), com verificações do editor, jornada do candidato e laboratórios.
 
@@ -14,7 +12,7 @@ Entrega para apresentação: consulte o [roteiro de demonstração](docs/APRESEN
 
 ## Executar no Windows
 
-Requisitos: Python 3.12 ou superior. Docker Desktop com engine Linux é necessário para a Intranet e o console final de investigação. Formulários, candidaturas e avaliações por dossiê funcionam sem Docker. Na pasta do projeto:
+Requisitos: Python 3.12 ou superior. VirtualBox e Vagrant são necessários para a Intranet e o console final de investigação (veja [docs/VIRTUALBOX.md](docs/VIRTUALBOX.md)). Formulários, candidaturas e avaliações por dossiê funcionam sem eles. Na pasta do projeto:
 
 ```powershell
 python -m venv .venv
@@ -34,8 +32,8 @@ Crie o diretório de destino fora do repositório e execute `.\.venv\Scripts\pyt
 
 - Cadastro, login, logout e edição de nome/equipe.
 - Arenas com busca e filtro, desafios de treino, dicas quando disponíveis e validação de respostas.
-- Intranet Docker individual com flag única, porta local, limite de instâncias e expiração de 60 minutos.
-- Investigação final em laboratório Docker isolado: captura fictícia de servidor com registros de acesso, eventos e processos, sem dicas. Os dados mudam por instância; trata-se de treinamento, sem garantia antifraude para seleção real.
+- Intranet em máquina virtual individual com flag única, porta local, limite de instâncias e expiração de 60 minutos.
+- Investigação final em laboratório VirtualBox isolado: captura fictícia de servidor com registros de acesso, eventos e processos, sem dicas. Os dados mudam por instância; trata-se de treinamento, sem garantia antifraude para seleção real.
 - Ranking calculado a partir de desafios resolvidos, sem duplicar pontos por reenvio.
 - Painel de mentoria, avaliação de quatro competências e dossiê com histórico imprimível.
 - Vagas públicas em `/opportunities`; gestão pela mentoria em `/admin` e `/jobs`.
@@ -56,7 +54,7 @@ O painel **Minha evolução** apresenta progresso por área, atividade recente e
 
 ## Arquitetura atual
 
-O navegador utiliza HTML/Jinja, CSS e JavaScript locais. Flask processa os formulários e acessa SQLite. O orquestrador usa a CLI Docker no host para criar os desafios. Os containers não recebem o banco nem o socket Docker. Não foram acrescentados frameworks, bancos ou serviços à base da equipe.
+O navegador utiliza HTML/Jinja, CSS e JavaScript locais. Flask processa os formulários e acessa SQLite. O orquestrador usa o VBoxManage no host para criar clones vinculados de uma VM base. As VMs não recebem o banco nem pastas compartilhadas do host. Não foram acrescentados frameworks, bancos ou serviços à base da equipe.
 
 As fontes Plus Jakarta Sans, Inter e JetBrains Mono são servidas localmente, com suas licenças. As referências da Rafaela permanecem preservadas.
 
@@ -64,19 +62,18 @@ As fontes Plus Jakarta Sans, Inter e JetBrains Mono são servidas localmente, co
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
-docker compose --profile manual config --quiet
-$env:RUN_DOCKER_TESTS = '1'
+$env:RUN_VBOX_TESTS = '1'
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p test_orchestrator.py -v
-Remove-Item Env:RUN_DOCKER_TESTS
+Remove-Item Env:RUN_VBOX_TESTS
 ```
 
-Os testes da aplicação usam bancos temporários e mocks do Docker. O teste real é separado e exige o daemon ativo. O teste opcional de navegador está em `tests/browser.cjs`; usa Playwright apenas como ferramenta de QA, fora das dependências do produto. Seu servidor isolado é iniciado com `.\.venv\Scripts\python.exe tests/serve_browser.py`, na porta 5055, e grava evidências em `output/qa`.
+Os testes da aplicação usam bancos temporários e mocks do VBoxManage. O teste real é separado e exige a VM base criada. O teste opcional de navegador está em `tests/browser.cjs`; usa Playwright apenas como ferramenta de QA, fora das dependências do produto. Seu servidor isolado é iniciado com `.\.venv\Scripts\python.exe tests/serve_browser.py`, na porta 5055, e grava evidências em `output/qa`.
 
 ## Operação e limites
 
-O servidor Flask está vinculado ao loopback e com debug desligado. O processo da aplicação deve permanecer aberto para remover ambientes expirados; se fechado, a limpeza volta na próxima execução. Não é um serviço de produção nem um ambiente multiusuário remoto. A rede Docker reduz comunicação entre instâncias, mas não constitui sandbox de execução de código arbitrário.
+O servidor Flask está vinculado ao loopback e com debug desligado. O processo da aplicação deve permanecer aberto para remover ambientes expirados; se fechado, a limpeza volta na próxima execução. Não é um serviço de produção nem um ambiente multiusuário remoto. Cada VM usa NAT própria, o que impede comunicação entre instâncias,, mas não constitui sandbox de execução de código arbitrário.
 
-### Conferir o fluxo novo sem Docker
+### Conferir o fluxo novo sem máquinas virtuais
 
 ```powershell
 .\.venv\Scripts\python.exe tests/serve_recruitment.py
@@ -84,11 +81,11 @@ O servidor Flask está vinculado ao loopback e com debug desligado. O processo d
 
 Abra **http://127.0.0.1:5056**. Esse servidor de demonstração cria duas vagas identificadas como DEMO QA em banco separado, `output/qa/recruitment-browser.db`; não utiliza o banco da equipe. Cadastre uma conta sintética para experimentar. O acesso de mentoria usa a credencial local demonstrativa descrita acima. Nenhum e-mail é enviado.
 
-As avaliações seletivas são cenários textuais com revisão humana; não provisionam novos alvos Docker nem executam comandos. Pontuação de treino não é reaproveitada como nota da seleção. Nesta entrega, a mentoria continua responsável pelo recrutamento interno; perfis separados de administrador/recrutador e isolamento multiempresa ainda não foram implementados.
+As avaliações seletivas são cenários textuais com revisão humana; não provisionam novos alvos virtuais nem executam comandos. Pontuação de treino não é reaproveitada como nota da seleção. Nesta entrega, a mentoria continua responsável pelo recrutamento interno; perfis separados de administrador/recrutador e isolamento multiempresa ainda não foram implementados.
 
-Para criar o alvo Intranet opcional: `docker compose --profile manual build web01`.
+Para criar a VM base dos laboratórios: `powershell -ExecutionPolicy Bypass -File scripts\setup_virtualbox.ps1`.
 
-Detalhes de preparação e diagnóstico estão em [docs/DOCKER.md](docs/DOCKER.md). O histórico desta integração está em [docs/mudanca.md](docs/mudanca.md), e a matriz de resultados em [Plano de Testes de Software & GOT.docx](<docs/Plano de Testes de Software & GOT.docx>).
+Detalhes de preparação e diagnóstico estão em [docs/VIRTUALBOX.md](docs/VIRTUALBOX.md). O histórico desta integração está em [docs/mudanca.md](docs/mudanca.md), e a matriz de resultados em [Plano de Testes de Software & GOT.docx](<docs/Plano de Testes de Software & GOT.docx>).
 
 Não publique `lab.db`, `.session-key`, `.env`, dados de usuários ou evidências privadas. O repositório público contém somente código, documentação e recursos visuais; dados locais e segredos ficam ignorados.
 

@@ -50,7 +50,7 @@ class LaboratoryWorkspaceTests(unittest.TestCase):
         self.assertIn('Gerenciar meu ambiente',html)
         self.assertIn('data-expiry',html)
         self.assertNotIn('22002',html)
-        self.assertIn('O estado real do Docker é confirmado',html)
+        self.assertIn('O estado real da máquina virtual é confirmado',html)
 
     def test_completed_badge_belongs_to_logged_user(self):
         with closing(sqlite3.connect(module.DB)) as con,con:

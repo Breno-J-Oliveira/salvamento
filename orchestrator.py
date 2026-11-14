@@ -1,147 +1,182 @@
-"""Ambientes Docker locais. Apenas imagens e containers deste projeto são aceitos."""
-import json
+"""Ambientes VirtualBox locais. Apenas máquinas virtuais deste projeto são aceitas.
+
+Cada instância é um clone vinculado (linked clone) da VM base ``cti-lab-base``,
+criada uma única vez por ``scripts/setup_virtualbox.ps1``. A flag e o desafio são
+entregues ao convidado por guest properties somente leitura, nunca por argumentos
+de linha de comando visíveis no host.
+"""
 import logging
 import os
 import re
+import shutil
+import socket
 import subprocess
 import time
 import urllib.error
 import urllib.request
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-NETWORK = "cti-lab-net"
-LABEL = "cti-lab=1"
-IMAGE_DIRS = {"cti-lab/web-01": os.path.join(BASE, "challenges", "web-01"),
-              "cti-lab/incident-01": os.path.join(BASE, "challenges", "incident-01")}
+BASE_VM = "cti-lab-base"
+BASE_SNAPSHOT = "base"
+GROUP = "/cti-lab"
+OWNER_KEY = "cti-lab/owner"
+IMAGES = {"cti-lab/web-01": "web-01", "cti-lab/incident-01": "incident-01"}
 NAME = re.compile(r"lab-u[0-9]+-c[0-9]+-[a-f0-9]{6,32}\Z")
-QUERY_TIMEOUT = 5
-STOP_TIMEOUT = 20
+QUERY_TIMEOUT = 15
+STOP_TIMEOUT = 60
+READY_TIMEOUT = 240
+VM_MEMORY_MB = 512
+VM_CPUS = 1
 logger = logging.getLogger(__name__)
 
 
-class DockerError(Exception):
+class LabError(Exception):
     pass
 
 
-def availability():
-    """Read-only engine probe; never build, start or clean containers."""
-    import shutil
-    if not shutil.which('docker'):
-        return dict(available=False, code='missing_cli', message='Docker não instalado ou fora do PATH. As avaliações textuais continuam disponíveis; laboratórios executáveis precisam do Docker Desktop.')
-    try:
-        _docker('info', '--format', '{{.ServerVersion}}', timeout=QUERY_TIMEOUT)
-    except DockerError:
-        return dict(available=False, code='engine_unavailable', message='A CLI existe, mas o engine não respondeu. Abra o Docker Desktop e tente novamente. Nenhum ambiente foi iniciado.')
-    return dict(available=True, code='ready', message='O engine Docker respondeu. Isso confirma disponibilidade do engine, não a execução ou o isolamento de um laboratório específico.')
+# Nome antigo mantido para compatibilidade com app.py e testes existentes.
+DockerError = LabError
 
 
-def _docker(*args, timeout=60, env=None):
+def _vboxmanage_path():
+    found = shutil.which("VBoxManage")
+    if found:
+        return found
+    for root in (os.environ.get("VBOX_MSI_INSTALL_PATH"), os.environ.get("VBOX_INSTALL_PATH"),
+                 r"C:\Program Files\Oracle\VirtualBox"):
+        if root:
+            candidate = os.path.join(root, "VBoxManage.exe")
+            if os.path.isfile(candidate):
+                return candidate
+    return "VBoxManage"
+
+
+def _vbox(*args, timeout=60):
     try:
-        result = subprocess.run(["docker", *args], capture_output=True, text=True,
-                                encoding="utf-8", errors="replace", timeout=timeout, env=env)
+        result = subprocess.run([_vboxmanage_path(), *args], capture_output=True, text=True,
+                                encoding="utf-8", errors="replace", timeout=timeout)
     except FileNotFoundError as error:
-        raise DockerError("Docker não encontrado. Instale e abra o Docker Desktop.") from error
+        raise LabError("VirtualBox não encontrado. Instale o VirtualBox e execute scripts/setup_virtualbox.ps1.") from error
     except subprocess.TimeoutExpired as error:
-        raise DockerError("O Docker demorou demais para responder. Verifique o Docker Desktop.") from error
+        raise LabError("O VirtualBox demorou demais para responder.") from error
     except OSError as error:
-        raise DockerError("Não foi possível executar o Docker neste computador.") from error
+        raise LabError("Não foi possível executar o VirtualBox neste computador.") from error
     if result.returncode:
-        # Docker can echo flags, environment values and host paths in errors.
-        raise DockerError("O Docker não concluiu a operação. Verifique se o Docker Desktop está ativo.")
+        # VBoxManage pode ecoar caminhos do host e valores de propriedades em erros.
+        raise LabError("O VirtualBox não concluiu a operação.")
     return result.stdout.strip()
 
 
-def ensure_network():
-    names = _docker("network", "ls", "--filter", f"name=^{NETWORK}$", "--format", "{{.Name}}", timeout=QUERY_TIMEOUT)
-    if NETWORK not in names.splitlines():
-        _docker("network", "create", "--driver", "bridge", "--label", LABEL,
-                "-o", "com.docker.network.bridge.enable_icc=false", NETWORK, timeout=STOP_TIMEOUT)
-    try:
-        network = json.loads(_docker("network", "inspect", NETWORK, timeout=QUERY_TIMEOUT))[0]
-        safe = (isinstance(network, dict) and network.get("Driver") == "bridge"
-                and isinstance(network.get("Options"), dict)
-                and network["Options"].get("com.docker.network.bridge.enable_icc") == "false")
-    except (ValueError, TypeError, KeyError, IndexError) as error:
-        raise DockerError("O Docker retornou uma configuração de rede inválida.") from error
-    if not safe:
-        raise DockerError("A rede do laboratório não está isolada. Revise a configuração da rede cti-lab-net.")
+def _vm_names(command):
+    names = []
+    for line in _vbox("list", command, timeout=QUERY_TIMEOUT).splitlines():
+        match = re.match(r'"(.*)" \{[0-9a-fA-F-]+\}\s*$', line)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def ensure_base():
+    if BASE_VM not in _vm_names("vms"):
+        raise LabError("VM base do laboratório ausente. Execute scripts/setup_virtualbox.ps1.")
+    snapshots = _vbox("snapshot", BASE_VM, "list", "--machinereadable", timeout=QUERY_TIMEOUT)
+    if f'="{BASE_SNAPSHOT}"' not in snapshots:
+        raise LabError("Snapshot base do laboratório ausente. Execute scripts/setup_virtualbox.ps1.")
 
 
 def ensure_image(image):
-    if image not in IMAGE_DIRS:
-        raise DockerError("Imagem de laboratório não permitida.")
-    images = _docker("image", "ls", "--filter", f"reference={image}", "--format", "{{.ID}}", timeout=QUERY_TIMEOUT)
-    if not images:
-        _docker("build", "-t", image, IMAGE_DIRS[image], timeout=600)
+    """Compatibilidade: valida o desafio e garante que a VM base existe."""
+    if image not in IMAGES:
+        raise LabError("Imagem de laboratório não permitida.")
+    ensure_base()
 
 
 def _validate_name(name):
     if not isinstance(name, str) or not NAME.fullmatch(name):
-        raise DockerError("Identificador de ambiente inválido.")
+        raise LabError("Identificador de ambiente inválido.")
+
+
+def _is_owned(name):
+    if name not in _vm_names("vms"):
+        return False
+    value = _vbox("getextradata", name, OWNER_KEY, timeout=QUERY_TIMEOUT)
+    return value.strip() == "Value: 1"
 
 
 def _owned_names():
-    return _docker("ps", "-a", "--filter", f"label={LABEL}", "--format", "{{.Names}}", timeout=QUERY_TIMEOUT).splitlines()
+    return [n for n in _vm_names("vms") if NAME.fullmatch(n) and _is_owned(n)]
 
 
 def status(name):
     _validate_name(name)
-    names = _docker("ps", "--filter", f"label={LABEL}", "--format", "{{.Names}}", timeout=QUERY_TIMEOUT)
-    return name in names.splitlines()
+    return name in _vm_names("runningvms")
 
 
 def stop(name):
     """Ausência é idempotente; falhas reais não podem ser registradas como sucesso."""
     _validate_name(name)
-    if name in _owned_names():
-        _docker("rm", "-f", name, timeout=STOP_TIMEOUT)
+    if not _is_owned(name):
+        return
+    if name in _vm_names("runningvms"):
+        _vbox("controlvm", name, "poweroff", timeout=STOP_TIMEOUT)
+    # A sessão da VM pode levar alguns segundos para ser liberada após o poweroff.
+    last = None
+    for _ in range(10):
+        try:
+            _vbox("unregistervm", name, "--delete", timeout=STOP_TIMEOUT)
+            return
+        except LabError as error:
+            last = error
+            time.sleep(1)
+    raise last
 
 
 def _cleanup_failed_start(name, original):
     """Tenta recuperar a instância criada sem substituir o erro de inicialização."""
     try:
         stop(name)
-    except DockerError:
+    except LabError:
         original.add_note("A limpeza do ambiente também falhou; a instância pode precisar de reconciliação.")
         logger.warning("Não foi possível limpar ambiente após falha de inicialização")
 
 
+def _free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
 def start(name, image, container_port, flag):
     _validate_name(name)
-    if image not in IMAGE_DIRS or container_port != 5000:
-        raise DockerError("Configuração de laboratório não permitida.")
+    if image not in IMAGES or container_port != 5000:
+        raise LabError("Configuração de laboratório não permitida.")
     if not isinstance(flag, str) or not re.fullmatch(r"CTF\{[a-f0-9]{16,64}\}", flag):
-        raise DockerError("Configuração de flag inválida.")
-    ensure_network()
+        raise LabError("Configuração de flag inválida.")
     ensure_image(image)
-    env = os.environ.copy()
-    env["FLAG"] = flag
-    # Docker chooses the free port atomically. The secret is not in process arguments.
-    _docker("run", "-d", "--rm", "--name", name, "--label", LABEL, "--network", NETWORK,
-            "-p", "127.0.0.1::5000", "-e", "FLAG", "--memory", "128m", "--cpus", "0.5",
-            "--pids-limit", "64", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
-            "--read-only", "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m", image, env=env)
+    _vbox("clonevm", BASE_VM, "--snapshot", BASE_SNAPSHOT, "--options", "link",
+          "--name", name, "--groups", GROUP, "--register", timeout=STOP_TIMEOUT)
     try:
-        mapping = json.loads(_docker("inspect", "--format", "{{json .NetworkSettings.Ports}}", name, timeout=QUERY_TIMEOUT))
-        binding = mapping["5000/tcp"][0]
-        if binding["HostIp"] != "127.0.0.1":
-            raise DockerError("O ambiente não recebeu uma porta local segura.")
-        port = int(binding["HostPort"])
-        if not 1 <= port <= 65535:
-            raise ValueError("port out of range")
-        deadline = time.monotonic() + 30
+        _vbox("setextradata", name, OWNER_KEY, "1", timeout=QUERY_TIMEOUT)
+        port = _free_port()
+        # NAT própria por VM: as instâncias não se enxergam. A porta só escuta em 127.0.0.1.
+        _vbox("modifyvm", name, "--memory", str(VM_MEMORY_MB), "--cpus", str(VM_CPUS),
+              "--cpuexecutioncap", "50", "--nic1", "nat", timeout=QUERY_TIMEOUT)
+        _vbox("modifyvm", name, "--natpf1", f"lab,tcp,127.0.0.1,{port},,5000",
+              "--nat-localhostreachable1", "off", timeout=QUERY_TIMEOUT)
+        _vbox("guestproperty", "set", name, "/CTI/Challenge", IMAGES[image], "--flags", "RDONLYGUEST",
+              timeout=QUERY_TIMEOUT)
+        _vbox("guestproperty", "set", name, "/CTI/Flag", flag, "--flags", "RDONLYGUEST",
+              timeout=QUERY_TIMEOUT)
+        _vbox("startvm", name, "--type", "headless", timeout=STOP_TIMEOUT)
+        deadline = time.monotonic() + READY_TIMEOUT
         while time.monotonic() < deadline:
             try:
                 with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=2) as response:
                     if response.status == 200:
                         return port
             except (urllib.error.URLError, TimeoutError, OSError):
-                time.sleep(0.25)
-        raise DockerError("O laboratório não ficou pronto. Tente iniciar novamente.")
-    except (KeyError, IndexError, ValueError, TypeError) as error:
-        failure = DockerError("O Docker retornou uma configuração de porta inválida.")
-        _cleanup_failed_start(name, failure)
-        raise failure from error
+                time.sleep(1)
+        raise LabError("O laboratório não ficou pronto. Tente iniciar novamente.")
     except Exception as error:
         _cleanup_failed_start(name, error)
         raise
@@ -150,7 +185,4 @@ def start(name, image, container_port, flag):
 def cleanup_all():
     """Limpeza explícita; não executar automaticamente em toda inicialização."""
     for name in _owned_names():
-        if NAME.fullmatch(name):
-            stop(name)
-
-
+        stop(name)

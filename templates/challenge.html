@@ -7,6 +7,15 @@
 <h1>{{ c.title }}</h1>
 <p>{{ c.category }}</p>
 </section>
+{% if locked %}<section class="card team-lock" role="note"><h2>Desafio em equipe</h2><p>{{ locked }}</p><a class="button" href="/teams">Ir para equipes</a></section>{% else %}
+{% if focus_guard %}<section class="card focus-banner" data-focus-guard data-url="/challenge/{{ c.id }}/occurrence" data-csrf="{{ csrf_token() }}" data-count="{{ focus_count }}">
+<div><h2>Modo de foco ativo</h2>
+<p>Permaneça nesta tela enquanto resolve o desafio. Trocar de aba, sair da janela ou da página gera uma ocorrência que a mentoria poderá consultar.</p>
+<p class="focus-meter">Ocorrências neste desafio: <strong data-focus-count>{{ focus_count }}</strong></p>
+<p class="focus-status" role="status" aria-live="polite" data-focus-status></p></div>
+<button type="button" class="secondary" data-fullscreen>Entrar em tela cheia</button>
+</section>
+<script src="{{ url_for('static', filename='focus-guard.js', v='20261113-cti6') }}" defer></script>{% endif %}
 <div class="two-columns challenge-layout">
 <div class="challenge-briefing">
 <section class="card">
@@ -17,9 +26,9 @@
 <div class="challenge-actions">{% if c.image %}<section class="card lab-card">
 <h2>Seu ambiente virtual</h2>{% if inst %}{% if inst.available %}<span class="tag blueteam">Ambiente iniciado</span>
 <p>Acesse o ambiente para investigar os registros disponíveis.</p>
-<a class="button secondary full" href="http://127.0.0.1:{{ inst.port }}" target="_blank" rel="noopener noreferrer">Abrir laboratório</a>
+<a class="button secondary full" data-lab-link href="http://127.0.0.1:{{ inst.port }}" target="_blank" rel="noopener noreferrer">Abrir laboratório</a>
 <p class="mono">127.0.0.1:{{ inst.port }}</p>
-{% else %}<p class="msg" role="status">Não foi possível confirmar o estado do Docker. Abra o Docker Desktop e atualize a página. Seu registro de ambiente foi preservado.</p>{% endif %}
+{% else %}<p class="msg" role="status">Não foi possível confirmar o estado do VirtualBox. Verifique a instalação e atualize a página. Seu registro de ambiente foi preservado.</p>{% endif %}
 <p>Expira em <strong data-expiry="{{ inst.expires_at }}">{{ ((inst.expires_at - now) / 60)|round(0)|int }} min</strong>.</p>
 <form method="post" action="/challenge/{{ c.id }}/stop">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -30,12 +39,12 @@
 <button class="full">Iniciar ambiente</button>
 </form>
 <p class="field-help">A primeira inicialização pode levar alguns minutos. O ambiente expira automaticamente.</p>{% endif %}</section>{% endif %}<section class="card">
-<h2>Submeter flag</h2>{% if c.editorial_status != 'published' %}<p class="notice">Prévia da equipe. Este desafio não recebe tentativas enquanto estiver em rascunho ou pausado.</p>{% elif solved %}<p class="ok">Desafio concluído. Seus pontos já foram registrados.</p>{% else %}<p class="muted">Encontrou a bandeira? Envie o código completo para validar sua descoberta.</p>
+<h2>Submeter flag</h2>{% if solved %}<p class="ok">Desafio concluído. Seus pontos já foram registrados.</p>{% else %}<p class="muted">Encontrou a bandeira? Envie o código completo para validar sua descoberta.</p>
 <form method="post">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-<label>Flag<input name="flag" placeholder="CTF{...}" maxlength="512" required autocomplete="off" spellcheck="false" class="mono">
+<label>{{ 'Resposta' if c.side == 'Corporativo' else 'Flag' }}<input name="flag" placeholder="{{ 'Resposta no formato pedido no briefing' if c.side == 'Corporativo' else 'CTF{...}' }}" maxlength="512" required autocomplete="off" spellcheck="false" class="mono">
 </label>
 <button class="full">Validar flag</button>
 </form>{% endif %}</section>
 </div>
-</div>{% endblock %}
+</div>{% endif %}{% endblock %}

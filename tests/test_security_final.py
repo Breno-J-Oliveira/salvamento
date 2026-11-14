@@ -8,6 +8,7 @@ from contextlib import closing
 
 os.environ.setdefault('SECRET_KEY', 'test-security-only')
 import app as module
+from team_helpers import put_in_team
 
 
 class SecurityFinalTests(unittest.TestCase):
@@ -53,6 +54,7 @@ class SecurityFinalTests(unittest.TestCase):
             connection.executemany('INSERT INTO attempts(user_id,challenge_id,correct,created_at) VALUES(?,?,0,?)', [(uid,cid,now)]*12)
             connection.execute('INSERT INTO instances(user_id,challenge_id,container,port,flag_hash,started_at,expires_at,active) VALUES(?,?,?,?,?,?,?,1)',
                                (uid,cid,'lab-u2-c13-abcdef',12345,module.h('CTF{192.0.2.2}'),now,now+3600))
+        put_in_team(module.DB, uid, 'Blue Team')
         module.RATE_BUCKETS.clear()
         with self.client.session_transaction() as session:
             session.update(user_id=uid, csrf='valid-test-token')

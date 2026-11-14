@@ -5,18 +5,32 @@ from functools import wraps
 from urllib.parse import urlsplit
 from flask import Flask, g, render_template, request, redirect, session, flash, abort
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 import orchestrator as orch
 import learning
 import recruitment
 import selection
 import rubric
 import vacancies
-import challenge_editor
-import corporate
-import remote_labs
+import blog
+import challenge_admin
+import occurrences
+import teams
 from catalog import seed_catalog
+from catalog_corporate import seed_corporate_catalog
 
 app = Flask(__name__)
+production = os.environ.get('PURPLE_ENV') == 'production'
+if production:
+    if len(os.environ.get('SECRET_KEY', '')) < 32:
+        raise RuntimeError('SECRET_KEY must contain at least 32 characters in production.')
+    if not os.environ.get('LAB_DATABASE') or not Path(os.environ['LAB_DATABASE']).is_absolute():
+        raise RuntimeError('LAB_DATABASE must be an absolute path on persistent storage.')
+    if not os.environ.get('ALLOWED_HOSTS'):
+        raise RuntimeError('ALLOWED_HOSTS must list the public hostnames.')
+    # One trusted Render reverse proxy supplies the client IP and HTTPS scheme.
+    # The service must not be exposed directly outside that proxy.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 key_path = Path(__file__).parent / ".session-key"
 if not os.environ.get("SECRET_KEY") and not key_path.exists():
     try:
@@ -26,8 +40,11 @@ if not os.environ.get("SECRET_KEY") and not key_path.exists():
         pass
 app.secret_key = os.environ.get("SECRET_KEY") or key_path.read_text().strip()
 app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                  SESSION_COOKIE_SECURE=production,
                   MAX_CONTENT_LENGTH=65536, PERMANENT_SESSION_LIFETIME=timedelta(hours=8))
-app.config['ALLOWED_HOSTS'] = ('127.0.0.1', 'localhost', '::1')
+app.config['ALLOWED_HOSTS'] = tuple(host.strip().lower() for host in os.environ['ALLOWED_HOSTS'].split(',') if host.strip()) if production else ('127.0.0.1', 'localhost', '::1')
+if not app.config['ALLOWED_HOSTS']:
+    raise RuntimeError('ALLOWED_HOSTS cannot be empty.')
 ENV_LOCK = threading.RLock()
 RATE_LOCK = threading.Lock()
 RATE_BUCKETS = {}
@@ -43,10 +60,6 @@ app.jinja_env.globals["csrf_token"] = csrf_token
 
 @app.before_request
 def protect_request():
-    # SQLite identifiers are signed 64-bit integers; reject oversized route input.
-    if any(isinstance(value,int) and value > 9223372036854775807
-           for value in (request.view_args or {}).values()):
-        abort(404)
     # Local deployment must not accept attacker-controlled DNS names.
     try:
         hostname = urlsplit(request.host_url).hostname
@@ -54,10 +67,8 @@ def protect_request():
         abort(400)
     if hostname not in app.config['ALLOWED_HOSTS']:
         abort(400, description='Endereço de acesso não autorizado. Use o endereço local da aplicação.')
-    # Machine credentials authenticate this single endpoint independently of browser cookies.
-    if request.endpoint == 'remote_agent_poll':
-        remote_labs.authenticate_agent(db)
-        return
+    if production and request.endpoint in ('start_env', 'stop_env', 'ambientes', 'encerrar_ambiente', 'encerrar_todos'):
+        abort(503, description='O laboratório local não está disponível neste ambiente.')
     if session.get("user_id"):
         user = db().execute("SELECT id,name,role FROM users WHERE id=?", (session["user_id"],)).fetchone()
         if not user:
@@ -174,9 +185,18 @@ def init_db():
     selection.migrate(con)
     rubric.migrate(con)
     vacancies.migrate(con)
+    blog.migrate(con)
     if not con.execute("SELECT 1 FROM users").fetchone():
+        if production and len(os.environ.get('MENTOR_PASSWORD', '')) < 12:
+            con.close()
+            raise RuntimeError('Set MENTOR_PASSWORD to at least 12 characters for initial setup.')
         con.execute("INSERT INTO users(name,email,password,role,team) VALUES(?,?,?,?,?)",
                     ("Mentor", "mentor@cti.local", generate_password_hash(os.environ.get("MENTOR_PASSWORD", "mentor123")), "mentor", "Mentoria"))
+    if production:
+        mentors = con.execute("SELECT password FROM users WHERE role='mentor'").fetchall()
+        if not mentors or any(not row[0] or check_password_hash(row[0], 'mentor123') for row in mentors):
+            con.close()
+            raise RuntimeError('Configure a non-default password for every mentor before production.')
     if not con.execute("SELECT 1 FROM challenges").fetchone():
         for t, c, s, p, d, hint, url, flag in SEED:
             con.execute("INSERT INTO challenges(title,category,side,points,description,hint,url,flag_hash) VALUES(?,?,?,?,?,?,?,?)",
@@ -189,15 +209,16 @@ def init_db():
                 "WHERE title='Intranet esquecida' AND image IS NULL",
                 ("Clique em 'Iniciar ambiente' para criar a sua intranet isolada e acesse o endereço mostrado. "
                  "Existe um arquivo que os robôs de busca foram instruídos a ignorar. Encontre a flag.",))
+    challenge_admin.migrate(con)
+    teams.migrate(con)
+    occurrences.migrate(con)
     seed_catalog(con)
+    seed_corporate_catalog(con)
     con.execute("INSERT INTO challenges(title,category,side,points,description,hint,url,flag_hash,image,container_port) "
                 "SELECT ?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM challenges WHERE title=?)",
                 ("Incidente em andamento", "Resposta a incidentes", "Blue Team", 300,
                  "Investigue os registros disponíveis no servidor simulado. Identifique o endereço IP associado à atividade maliciosa e envie CTF{ip}.",
                  "", "", "", "cti-lab/incident-01", 5000, "Incidente em andamento"))
-    challenge_editor.migrate(con)
-    corporate.migrate(con)
-    remote_labs.migrate(con)
     con.commit(); con.close()
 
 def db():
@@ -234,9 +255,9 @@ def mentor_required(f):
 def index():
     d = db()
     own = next((r for r in stats() if r['id'] == session.get('user_id')), {})
-    summary = dict(total=d.execute("SELECT COUNT(*) FROM challenges WHERE editorial_status='published'").fetchone()[0],
-                   labs=d.execute("SELECT COUNT(*) FROM challenges WHERE image IS NOT NULL AND editorial_status='published'").fetchone()[0],
-                   points=d.execute("SELECT COALESCE(SUM(points),0) FROM challenges WHERE editorial_status='published'").fetchone()[0],
+    summary = dict(total=d.execute('SELECT COUNT(*) FROM challenges WHERE active=1').fetchone()[0],
+                   labs=d.execute('SELECT COUNT(*) FROM challenges WHERE image IS NOT NULL AND active=1').fetchone()[0],
+                   points=d.execute('SELECT COALESCE(SUM(points),0) FROM challenges WHERE active=1').fetchone()[0],
                    own_points=own.get('points',0))
     # A mesma regra editorial da inscrição também protege os destaques públicos.
     now = int(time.time())
@@ -251,7 +272,7 @@ def index():
 @login_required
 def laboratory():
     d=db(); now=int(time.time()); uid=session.get('user_id')
-    items=[dict(r) for r in d.execute("SELECT * FROM challenges WHERE image IS NOT NULL AND editorial_status='published' ORDER BY CASE WHEN image='cti-lab/incident-01' THEN 0 ELSE 1 END,id")]
+    items=[dict(r) for r in d.execute("SELECT * FROM challenges WHERE image IS NOT NULL AND active=1 ORDER BY CASE WHEN image='cti-lab/incident-01' THEN 0 ELSE 1 END,id")]
     instances={};solved=set();own_instances=[]
     if uid:
         own_instances=d.execute('SELECT * FROM instances WHERE user_id=? AND active=1 AND expires_at>=? ORDER BY started_at',(uid,now)).fetchall()
@@ -260,16 +281,63 @@ def laboratory():
     return render_template('laboratory.html',items=items,instances=instances,solved=solved,now=now,max_per_user=MAX_PER_USER,active_count=len(own_instances))
 
 
-@app.route('/admin/laboratory-status', methods=['GET', 'POST'])
-@mentor_required
-def laboratory_status():
-    diagnosis = orch.availability() if request.method == 'POST' else None
-    return render_template('laboratory_status.html', diagnosis=diagnosis)
-
-
 @app.route('/blog')
 def study_blog():
-    return render_template('blog.html')
+    posts = db().execute("SELECT p.*,u.name AS author FROM blog_posts p LEFT JOIN users u ON u.id=p.author_id WHERE p.published=1 ORDER BY p.created_at DESC,p.id DESC").fetchall()
+    return render_template('blog.html', posts=posts, paragraphs=blog.paragraphs,
+                           fmt=lambda t: time.strftime("%d/%m/%Y", time.localtime(t)))
+
+
+@app.route('/admin/blog', methods=['GET', 'POST'])
+@mentor_required
+def admin_blog():
+    d = db(); data, errors = {}, []
+    if request.method == 'POST':
+        data, errors = blog.clean(request.form)
+        if not errors:
+            blog.save(d, data, session['user_id'])
+            flash('Artigo publicado.' if data['published'] else 'Artigo salvo como rascunho.')
+            return redirect('/admin/blog')
+    posts = d.execute("SELECT p.*,u.name AS author FROM blog_posts p LEFT JOIN users u ON u.id=p.author_id ORDER BY p.created_at DESC,p.id DESC").fetchall()
+    return render_template('admin_blog.html', posts=posts, post=data, errors=errors, categories=blog.CATEGORIES,
+                           fmt=lambda t: time.strftime("%d/%m/%Y %H:%M", time.localtime(t))), (400 if errors else 200)
+
+
+@app.route('/admin/blog/<int:pid>', methods=['GET', 'POST'])
+@mentor_required
+def admin_blog_edit(pid):
+    d = db(); post = d.execute('SELECT * FROM blog_posts WHERE id=?', (pid,)).fetchone()
+    if not post:
+        abort(404)
+    errors = []
+    if request.method == 'POST':
+        data, errors = blog.clean(request.form)
+        if not errors:
+            blog.save(d, data, session['user_id'], pid)
+            flash('Artigo atualizado.')
+            return redirect('/admin/blog')
+        post = dict(post, **data)
+    return render_template('admin_blog_edit.html', post=post, errors=errors, categories=blog.CATEGORIES), (400 if errors else 200)
+
+
+@app.route('/admin/blog/<int:pid>/toggle', methods=['POST'])
+@mentor_required
+def admin_blog_toggle(pid):
+    d = db()
+    if not d.execute('UPDATE blog_posts SET published=1-published,updated_at=? WHERE id=?', (int(time.time()), pid)).rowcount:
+        abort(404)
+    d.commit(); flash('Visibilidade do artigo atualizada.')
+    return redirect('/admin/blog')
+
+
+@app.route('/admin/blog/<int:pid>/delete', methods=['POST'])
+@mentor_required
+def admin_blog_delete(pid):
+    d = db()
+    if not d.execute('DELETE FROM blog_posts WHERE id=?', (pid,)).rowcount:
+        abort(404)
+    d.commit(); flash('Artigo excluído.')
+    return redirect('/admin/blog')
 
 
 @app.route('/purple-team')
@@ -320,10 +388,14 @@ def logout():
 def challenges():
     d = db()
     solved = {r[0] for r in d.execute("SELECT challenge_id FROM attempts WHERE user_id=? AND correct=1", (session["user_id"],))}
-    return render_template("challenges.html", items=d.execute("SELECT * FROM challenges WHERE editorial_status='published' ORDER BY id").fetchall(), solved=solved)
+    # Participantes só veem desafios ativos; a mentoria vê todos (os inativos aparecem sinalizados).
+    where = "" if session.get("role") == "mentor" else "WHERE active=1"
+    my_side = teams.user_side(d, session["user_id"]) if session.get("role") == "participante" else None
+    return render_template("challenges.html", items=d.execute(f"SELECT * FROM challenges {where} ORDER BY id").fetchall(),
+                           solved=solved, my_side=my_side, is_participant=session.get("role") == "participante")
 
 TTL = 60 * 60       # duração de cada ambiente: 60 minutos
-MAX_ACTIVE = 10     # máximo de containers ao mesmo tempo
+MAX_ACTIVE = 10     # máximo de máquinas virtuais ao mesmo tempo
 MAX_PER_USER = 2    # máximo por participante
 
 def reap_expired():
@@ -334,7 +406,7 @@ def reap_expired():
             for iid, name in con.execute("SELECT id,container FROM instances WHERE active=1 AND expires_at<?", (now,)).fetchall():
                 try:
                     orch.stop(name)
-                except orch.DockerError:
+                except orch.LabError:
                     app.logger.warning("Não foi possível encerrar ambiente expirado %s", iid)
                     continue
                 con.execute("UPDATE instances SET active=0 WHERE id=?", (iid,))
@@ -359,8 +431,8 @@ def active_instance(d, uid, cid):
 def stop_instance(d, row):
     try:
         orch.stop(row["container"])
-    except orch.DockerError:
-        flash("Não foi possível encerrar o ambiente. Verifique o Docker e tente novamente.")
+    except orch.LabError:
+        flash("Não foi possível encerrar o ambiente. Verifique o VirtualBox e tente novamente.")
         return False
     d.execute("UPDATE instances SET active=0 WHERE id=?", (row["id"],))
     d.commit()
@@ -371,8 +443,15 @@ def stop_instance(d, row):
 def challenge(cid):
     d, uid = db(), session["user_id"]
     c = d.execute("SELECT * FROM challenges WHERE id=?", (cid,)).fetchone()
-    if not c or (c["editorial_status"] != "published" and (session.get("role") != "mentor" or request.method == "POST")):
+    if not c or (not c["active"] and session.get("role") != "mentor"):
         abort(404)
+    if production and c['image']:
+        abort(503, description='Este laboratório precisa de um ambiente virtual conectado.')
+    # Desafios Red/Blue Team são de equipe: sem equipe do mesmo lado, nem briefing nem envio.
+    team_note = teams.team_block(d, uid, c) if session.get("role") == "participante" else None
+    if team_note:
+        return render_template("challenge.html", c=c, locked=team_note, solved=False, inst=None, now=int(time.time()),
+                               focus_guard=False, focus_count=0), (403 if request.method == "POST" else 200)
     d.execute("INSERT OR IGNORE INTO starts VALUES(?,?,?)", (uid, cid, int(time.time())))
     d.commit()
     solved = d.execute("SELECT 1 FROM attempts WHERE user_id=? AND challenge_id=? AND correct=1", (uid, cid)).fetchone() is not None
@@ -380,10 +459,6 @@ def challenge(cid):
         return redirect(f"/challenge/{cid}")
     if request.method == "POST" and not solved:
         d.execute("BEGIN IMMEDIATE")
-        c = d.execute("SELECT * FROM challenges WHERE id=?", (cid,)).fetchone()
-        if not c or c["editorial_status"] != "published":
-            d.rollback()
-            abort(404)
         if d.execute("SELECT 1 FROM attempts WHERE user_id=? AND challenge_id=? AND correct=1", (uid,cid)).fetchone():
             d.rollback()
             return redirect(f"/challenge/{cid}")
@@ -421,9 +496,13 @@ def challenge(cid):
                 d.commit()
                 inst = None
                 flash("O ambiente não está mais em execução. Você pode iniciar outro.")
-        except orch.DockerError:
+        except orch.LabError:
             inst["available"] = False
-    return render_template("challenge.html", c=c, solved=solved, inst=inst, now=int(time.time()))
+    # Modo de foco: só para participantes e enquanto o desafio ainda não foi resolvido.
+    focus_guard = session.get("role") == "participante" and not solved
+    focus_count = occurrences.count(d, uid, cid) if focus_guard else 0
+    return render_template("challenge.html", c=c, solved=solved, inst=inst, now=int(time.time()),
+                           focus_guard=focus_guard, focus_count=focus_count)
 
 @app.route("/challenge/<int:cid>/start", methods=["POST"])
 @login_required
@@ -435,16 +514,19 @@ def start_env(cid):
 def start_env_locked(cid):
     d, uid = db(), session["user_id"]
     c = d.execute("SELECT * FROM challenges WHERE id=?", (cid,)).fetchone()
-    if not c or not c["image"] or c["editorial_status"] != "published":
+    if not c or not c["image"] or (not c["active"] and session.get("role") != "mentor"):
         abort(404)
-    reap_expired()
     back = redirect(f"/challenge/{cid}")
+    if session.get("role") == "participante" and teams.team_block(d, uid, c):
+        flash("Entre em uma equipe do lado deste desafio para iniciar o ambiente.")
+        return back
+    reap_expired()
     existing = active_instance(d, uid, cid)
     if existing:
         try:
             running = orch.status(existing["container"])
-        except orch.DockerError:
-            flash("Não foi possível consultar o ambiente. Verifique o Docker e tente novamente.")
+        except orch.LabError:
+            flash("Não foi possível consultar o ambiente. Verifique o VirtualBox e tente novamente.")
             return back
         if running:
             return back
@@ -460,8 +542,8 @@ def start_env_locked(cid):
     name = f"lab-u{uid}-c{cid}-{secrets.token_hex(3)}"
     try:
         port = orch.start(name, c["image"], c["container_port"], flag)
-    except orch.DockerError:
-        flash("Não foi possível iniciar o ambiente. Verifique se o Docker Desktop está em execução e tente novamente.")
+    except orch.LabError:
+        flash("Não foi possível iniciar o ambiente. Verifique se o VirtualBox está instalado e a VM base foi criada (scripts/setup_virtualbox.ps1).")
         return back
     now = int(time.time())
     try:
@@ -545,7 +627,7 @@ def dashboard():
         t["members"] += 1
         for k in ("solved", "points", "attempts"):
             t[k] += r[k]
-    total = db().execute("SELECT COUNT(*) FROM challenges").fetchone()[0]
+    total = db().execute("SELECT COUNT(*) FROM challenges WHERE active=1").fetchone()[0]
     return render_template("dashboard.html", rows=rows, teams=sorted(teams.values(), key=lambda t: -t["points"]), total=total)
 
 @app.route("/participante/<int:uid>", methods=["GET", "POST"])
@@ -570,13 +652,13 @@ def participante(uid):
     attempts = d.execute("""SELECT c.title, a.correct, a.created_at FROM attempts a JOIN challenges c ON c.id=a.challenge_id
                             WHERE a.user_id=? ORDER BY a.id DESC""", (uid,)).fetchall()
     evals = d.execute("SELECT * FROM evaluations WHERE user_id=? ORDER BY id DESC", (uid,)).fetchall()
-    return render_template("participante.html", u=u, attempts=attempts, evals=evals, writeups=d.execute("SELECT c.title,w.content FROM writeups w JOIN challenges c ON c.id=w.challenge_id WHERE w.user_id=? ORDER BY w.updated_at DESC",(uid,)).fetchall(),
+    return render_template("participante.html", u=u, attempts=attempts, evals=evals, occurrences=occurrences.for_user(d, uid), kinds=occurrences.KINDS, writeups=d.execute("SELECT c.title,w.content FROM writeups w JOIN challenges c ON c.id=w.challenge_id WHERE w.user_id=? ORDER BY w.updated_at DESC",(uid,)).fetchall(),
                            s=next((r for r in stats() if r["id"] == uid), None), fmt=lambda t: time.strftime("%d/%m %H:%M", time.localtime(t)))
 
 @app.route("/ranking")
 @login_required
 def ranking():
-    return render_template("ranking.html", rows=stats(), total=db().execute("SELECT COUNT(*) FROM challenges").fetchone()[0])
+    return render_template("ranking.html", rows=stats(), total=db().execute("SELECT COUNT(*) FROM challenges WHERE active=1").fetchone()[0])
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -664,13 +746,13 @@ def toggle_job(jid):
     return redirect('/jobs')
 
 
-challenge_editor.register_routes(app, db, mentor_required)
-corporate.register_routes(app, db, login_required, mentor_required)
-remote_labs.register_routes(app, db, login_required, mentor_required)
 learning.register_routes(app, db, login_required)
 recruitment.register_routes(app, db, login_required, mentor_required)
 selection.register_routes(app, db, login_required)
 rubric.register_routes(app, db, mentor_required)
+challenge_admin.register_routes(app, db, mentor_required)
+teams.register_routes(app, db, login_required, mentor_required)
+occurrences.register_routes(app, db, login_required, mentor_required)
 vacancies.register_routes(app, db, mentor_required)
 
 if __name__ == "__main__":

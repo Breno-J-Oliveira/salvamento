@@ -1,0 +1,85 @@
+/* Correções de espaçamento e quebra de texto em cards. Carregado por último. */
+
+/* .opportunity-card p { margin: 0 } zerava o espaço dos parágrafos nas caixas internas do card. */
+.candidate-next{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.candidate-next h3,.candidate-next p{margin:0}
+.candidate-next .button{margin-top:8px}
+.candidate-feedback h3{margin:0 0 8px}
+.opportunity-card details>p{margin:0 0 12px}
+.opportunity-card details[open]>summary{margin-bottom:14px}
+.candidate-history ol{margin:0;padding-left:20px;display:grid;gap:10px}
+.candidate-history li{display:flex;flex-direction:column;gap:2px}
+.candidate-secondary-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px}
+.candidate-status-filter .page-actions{align-items:center;margin-top:16px}
+.candidate-status-filter>p{margin-top:16px}
+
+/* Ações dos cards de vaga (mentoria): botão e links não ficam colados nem desalinhados. */
+.job-card .page-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;margin-top:16px}
+.job-card .page-actions+.page-actions,.job-card form+form{margin-top:12px}
+
+/* Texto longo nunca ultrapassa o card. */
+.card,.card h1,.card h2,.card h3,.card p,.card dd,.card li,.opportunity-card *{overflow-wrap:anywhere}
+.card .tag,.card .status-badge,.card .button,.card button{overflow-wrap:normal}
+
+/* Lista de desafios: em larguras médias e pequenas o card vira três faixas alinhadas. */
+.ctf-row .tag{white-space:normal;line-height:1.4}
+.ctf-row h2{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+@media(max-width:1150px){
+  .ctf-list .ctf-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"info info" "tag points" "action action";gap:16px 20px;padding:24px}
+  .ctf-list .ctf-row>div{grid-area:info}
+  .ctf-list .ctf-row>.tag{grid-area:tag;justify-self:start;max-width:100%;text-align:left}
+  .ctf-list .ctf-row>.points{grid-area:points;align-self:center;justify-self:end}
+  .ctf-list .ctf-row>.button{grid-area:action;width:100%}
+}
+
+/* Barra de progresso nativa: trilho escuro (antes aparecia cheio mesmo com 0%). */
+progress{appearance:none;-webkit-appearance:none;height:10px;border:0;border-radius:99px;background:var(--border);overflow:hidden;display:block;margin-top:10px}
+progress::-webkit-progress-bar{background:var(--border);border-radius:99px}
+progress::-webkit-progress-value{background:var(--purple);border-radius:99px}
+progress::-moz-progress-bar{background:var(--purple);border-radius:99px}
+
+/* Métricas: rótulo e número com respiro. */
+.metrics>div span{margin-bottom:4px}
+.metrics>div strong{margin-top:6px}
+
+/* Equipes */
+.teams-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;align-items:start;margin-top:8px}
+.teams-columns>section>h2{margin-bottom:6px}
+.teams-columns>section>p.muted{margin:0 0 18px}
+.team-card{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+.team-card h3{margin:0;font-size:21px}
+.team-card p{margin:0}
+.team-mine{border-color:var(--purple)}
+.team-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.team-slots{display:flex;gap:8px}
+.team-slots span{flex:1;height:8px;border-radius:99px;background:var(--border)}
+.team-slots span.filled{background:var(--purple)}
+.team-members{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.team-members li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 14px;border:1px solid var(--border);border-radius:10px}
+.team-members .team-member-name{font-weight:600;flex:1 1 140px;min-width:0}
+.team-members .team-empty{border-style:dashed}
+.team-members form button{min-height:34px;padding:6px 12px;font-size:12px}
+.team-actions{display:flex;flex-wrap:wrap;gap:12px}
+.team-actions:empty{display:none}
+.team-create form,.team-create .blog-form-row{margin-top:12px}
+.team-create input,.team-create select{width:100%}
+.team-create button{margin-top:18px}
+.team-mine-summary p{margin:0}
+
+/* Modo de foco no desafio */
+.focus-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px;border-left:4px solid var(--purple);margin-bottom:24px}
+.focus-banner h2{margin:0 0 8px;font-size:18px}
+.focus-banner p{margin:0 0 6px}
+.focus-banner .focus-meter strong{color:var(--purple)}
+.focus-banner .focus-status:empty{display:none}
+.focus-banner.focus-alert{border-left-color:var(--red)}
+.focus-banner.focus-alert .focus-meter strong,.focus-banner.focus-alert .focus-status{color:var(--red)}
+.focus-banner button{flex-shrink:0}
+
+@media(max-width:900px){.teams-columns{grid-template-columns:minmax(0,1fr)}}
+
+/* Desafios de equipe */
+.team-lock{display:flex;flex-direction:column;align-items:flex-start;gap:12px;border-left:4px solid var(--purple)}
+.team-lock h2,.team-lock p{margin:0}
+.team-note{margin:0 0 20px}
+.team-required{color:var(--purple);white-space:nowrap}
